@@ -1,0 +1,75 @@
+name: protega
+description: A comprehensive health monitoring and emergency response application
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  provider: ^6.1.1
+
+  # UI & Animations
+  flutter_animate: ^4.5.0
+  fl_chart: ^1.1.1
+
+  # Utilities
+  uuid: ^4.3.3
+  url_launcher: ^6.2.4
+
+  # Icons
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  google_generative_ai: ^0.4.7
+  geolocator: ^14.0.2
+  image_picker: ^1.0.7
+  firebase_core: ^3.10.1
+  firebase_auth: ^5.4.1
+  cloud_firestore: ^5.6.2
+  permission_handler: ^12.0.1
+
+
+  flutter_phone_direct_caller: ^2.2.1
+  shared_preferences: ^2.5.5
+  flutter_dotenv: ^6.0.1
+  firebase_database: ^11.3.10
+  flutter_background_service: ^5.0.0
+  flutter_local_notifications: ^17.1.2
+  audioplayers: ^6.0.0
+  path_provider: ^2.1.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/sounds/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-Regular.ttf
+        - asset: assets/fonts/Outfit-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Outfit-Bold.ttf
+          weight: 700
+
+flutter_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/app_icon_transparent.png"
+  remove_alpha_ios: true

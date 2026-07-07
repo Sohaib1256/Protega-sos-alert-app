@@ -1,0 +1,28 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "protega-app-2026-62ec2",
+          "appId": "1:912320750163:android:ff8cfeea95e3cbc3925ca6",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "protega-app-2026-62ec2",
+          "configurations": {
+            "android": "1:912320750163:android:ff8cfeea95e3cbc3925ca6",
+            "ios": "1:912320750163:ios:c4e8d0834031fecb925ca6",
+            "macos": "1:912320750163:ios:c4e8d0834031fecb925ca6",
+            "web": "1:912320750163:web:08a08e882739230b925ca6",
+            "windows": "1:912320750163:web:98381a8eb8798f32925ca6"
+          }
+        }
+      }
+    }
+  }
+}
