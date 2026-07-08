@@ -18,13 +18,14 @@ class GuardianDashboard extends StatelessWidget {
         final user = provider.currentUser;
         if (user == null) return const SizedBox.shrink();
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              _buildHeader(user)
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(user)
                   .animate()
                   .fadeIn(duration: 500.ms)
                   .slideX(begin: -0.05),
@@ -63,6 +64,7 @@ class GuardianDashboard extends StatelessWidget {
                   .fadeIn(delay: 500.ms, duration: 500.ms),
               const SizedBox(height: 100),
             ],
+          ),
           ),
         );
       },
@@ -339,27 +341,38 @@ class GuardianDashboard extends StatelessWidget {
                       color: isOnline ? AppTheme.success : AppTheme.textMuted,
                       isActive: isOnline,
                     ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      Icons.battery_std_rounded,
-                      size: 12,
-                      color: patient.batteryLevel > 50
-                          ? AppTheme.success
-                          : patient.batteryLevel > 20
-                          ? AppTheme.warning
-                          : AppTheme.danger,
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${patient.batteryLevel}%',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                   ],
                 ),
               ],
+            ),
+          ),
+          Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.person_remove_rounded, size: 20, color: Colors.white54),
+              onPressed: () {
+                showDialog(
+                  context: ctx,
+                  builder: (dialogCtx) => AlertDialog(
+                    backgroundColor: const Color(0xFF1A1F2C),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    title: const Text('Remove Patient', style: TextStyle(color: Colors.white)),
+                    content: const Text('Are you sure you want to stop monitoring this patient?', style: TextStyle(color: Colors.white70)),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(dialogCtx);
+                          ctx.read<AppProvider>().removeConnection(patient.id);
+                        },
+                        child: const Text('Remove', style: TextStyle(color: AppTheme.danger)),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -439,7 +452,7 @@ class GuardianDashboard extends StatelessWidget {
                     24,
                     24,
                     24,
-                    MediaQuery.paddingOf(ctx).bottom + 24,
+                    MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.paddingOf(ctx).bottom + 24,
                   ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,

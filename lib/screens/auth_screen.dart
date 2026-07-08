@@ -26,8 +26,7 @@ class _AuthScreenState extends State<AuthScreen>
   final _guardianPhoneCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
 
-  UserPurpose _selectedPurpose = UserPurpose.medical;
-  UserRole _selectedRole = UserRole.patient;
+  UserRole _selectedRole = UserRole.user;
   String? _error;
   bool _obscurePass = true;
   bool _loading = false;
@@ -70,7 +69,7 @@ class _AuthScreenState extends State<AuthScreen>
 
   void _nextSignupStep() {
     HapticFeedback.selectionClick();
-    if (_signupStep == 2) {
+    if (_signupStep == 1) {
       _handleSignup();
       return;
     }
@@ -108,11 +107,11 @@ class _AuthScreenState extends State<AuthScreen>
       setState(() => _error = 'Email must end with .com');
       return;
     }
-    if (_selectedRole == UserRole.patient) {
+    if (_selectedRole == UserRole.user) {
       final guardianPhone = _guardianPhoneCtrl.text.trim();
       if (guardianPhone.isEmpty) {
         setState(
-                () => _error = 'Guardian contact is required for patients.');
+                () => _error = 'Guardian contact is required for users.');
         return;
       }
       if (guardianPhone.length != 10) {
@@ -134,7 +133,6 @@ class _AuthScreenState extends State<AuthScreen>
       email: email,
       password: password,
       role: _selectedRole,
-      purpose: _selectedPurpose,
       guardianPhone: _guardianPhoneCtrl.text.trim(),
       phone: phone,
     );
@@ -410,7 +408,7 @@ class _AuthScreenState extends State<AuthScreen>
                           ),
                         ),
                         Text(
-                          'Step ${_signupStep + 1} of 3',
+                          'Step ${_signupStep + 1} of 2',
                           style: TextStyle(
                             fontSize: 12,
                           ),
@@ -464,7 +462,7 @@ class _AuthScreenState extends State<AuthScreen>
               ],
               const SizedBox(height: 20),
               _buildPrimaryButton(
-                label: _signupStep == 2
+                label: _signupStep == 1
                     ? (_loading ? 'Creating account...' : 'Create Account')
                     : 'Continue',
                 onPressed: _loading ? null : _nextSignupStep,
@@ -476,12 +474,12 @@ class _AuthScreenState extends State<AuthScreen>
 
   Widget _buildStepIndicator() {
     return Row(
-      children: List.generate(3, (i) {
+      children: List.generate(2, (i) {
         final isActive = i == _signupStep;
         final isDone = i < _signupStep;
         return Expanded(
           child: Container(
-            margin: EdgeInsets.only(right: i < 2 ? 8 : 0),
+            margin: EdgeInsets.only(right: i < 1 ? 8 : 0),
             height: 4,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(2),
@@ -503,8 +501,6 @@ class _AuthScreenState extends State<AuthScreen>
         return _buildStep0();
       case 1:
         return _buildStep1();
-      case 2:
-        return _buildStep2();
       default:
         return const SizedBox.shrink();
     }
@@ -516,56 +512,7 @@ class _AuthScreenState extends State<AuthScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'What\'s your purpose?',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 14),
-        _purposeCard(
-          'Medical Use',
-          'Health monitoring and emergency alerts',
-          Icons.local_hospital_rounded,
-          UserPurpose.medical,
-        ),
-        const SizedBox(height: 10),
-        _purposeCard(
-          'Personal Use',
-          'Personal safety and location sharing',
-          Icons.person_rounded,
-          UserPurpose.personal,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep1() {
-    // Different roles based on purpose
-    final List<Widget> roleWidgets = _selectedPurpose == UserPurpose.medical
-        ? [
-      // Medical Use: Patient, Guardian, Caretaker, Safety Officer
-      _roleChip('Patient', Icons.favorite_rounded, UserRole.patient),
-      _roleChip('Guardian', Icons.shield_rounded, UserRole.guardian),
-      _roleChip('Caretaker', Icons.volunteer_activism_rounded,
-          UserRole.caretaker),
-      _roleChip('Safety Officer', Icons.local_police_rounded,
-          UserRole.safetyOfficer),
-    ]
-        : [
-      // Personal Use: Self (User), Guardian
-      _roleChip('Self (User)', Icons.person_rounded, UserRole.patient),
-      _roleChip('Guardian', Icons.shield_rounded, UserRole.guardian),
-    ];
-
-    return Column(
-      key: const ValueKey('step1'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _selectedPurpose == UserPurpose.medical
-              ? 'Select your role'
-              : 'Who are you?',
+          'Who are you?',
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -575,15 +522,18 @@ class _AuthScreenState extends State<AuthScreen>
         Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: roleWidgets,
+          children: [
+            _roleChip('User (Self)', Icons.person_rounded, UserRole.user),
+            _roleChip('Guardian', Icons.shield_rounded, UserRole.guardian),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildStep2() {
+  Widget _buildStep1() {
     return Column(
-      key: const ValueKey('step2'),
+      key: const ValueKey('step1'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
@@ -638,7 +588,7 @@ class _AuthScreenState extends State<AuthScreen>
             LengthLimitingTextInputFormatter(10),
           ],
         ),
-        if (_selectedRole == UserRole.patient) ...[
+        if (_selectedRole == UserRole.user) ...[
           const SizedBox(height: 12),
           _glassField(
             controller: _guardianPhoneCtrl,
@@ -671,89 +621,6 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _purposeCard(
-      String title,
-      String subtitle,
-      IconData icon,
-      UserPurpose purpose,
-      ) {
-    final isSelected = _selectedPurpose == purpose;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _selectedPurpose = purpose);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.accent.withAlpha(20)
-              : Colors.white.withAlpha(8),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? AppTheme.accent.withAlpha(120)
-                : Colors.white.withAlpha(15),
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppTheme.accent.withAlpha(30)
-                    : Colors.white.withAlpha(10),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color:
-                isSelected ? AppTheme.accent : Theme.of(context).textTheme.bodySmall!.color!,
-                size: 22,
-              ),
-            ),
-            SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? Theme.of(context).textTheme.bodyLarge!.color!
-                          : Theme.of(context).textTheme.bodyMedium!.color!,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.accent,
-                ),
-                child: const Icon(Icons.check, size: 14, color: Colors.white),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _roleChip(String label, IconData icon, UserRole role) {
     final isSelected = _selectedRole == role;

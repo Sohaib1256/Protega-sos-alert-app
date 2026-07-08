@@ -69,8 +69,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     
     // Listen for background gesture triggers from native Android
     _gestureChannel.setMethodCallHandler((call) async {
+      final provider = Provider.of<AppProvider>(context, listen: false);
+      if (provider.currentUser?.role == UserRole.guardian) return;
+      
       if (call.method == 'triggerSOS') {
-        final provider = Provider.of<AppProvider>(context, listen: false);
         if (!provider.isSOSActive && provider.sosGesture == 'volume_key') {
           debugPrint('Background MethodChannel SOS Trigger Received!');
           FlutterBackgroundService().invoke("triggerAlarm");
@@ -100,7 +102,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   }
 
   Future<void> _recheckPermissions() async {
-    final missing = await PermissionChecker.getMissingPermissions();
+    final role = Provider.of<AppProvider>(context, listen: false).currentUser?.role ?? UserRole.user;
+    final missing = await PermissionChecker.getMissingPermissions(role);
     if (missing.isNotEmpty && mounted) {
       // Show a snackbar prompting user to re-enable
       for (final p in missing) {
@@ -131,6 +134,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   // --- Gesture: Triple-Tap Detection ---
   void _handleTripleTap(AppProvider provider) {
+    if (provider.currentUser?.role == UserRole.guardian) return;
     if (provider.sosGesture != 'triple_tap') return;
     if (provider.sosActive) return;
 
@@ -156,9 +160,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   // --- Gesture: Volume Key Combo Detection ---
   bool _handleKeyEvent(KeyEvent event) {
+    final provider = context.read<AppProvider>();
+    if (provider.currentUser?.role == UserRole.guardian) return false;
     if (event is! KeyDownEvent) return false;
 
-    final provider = context.read<AppProvider>();
     if (provider.sosGesture != 'volume_key') return false;
     if (provider.sosActive) return false;
 
@@ -192,7 +197,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Selector<AppProvider, ({UserRole role, bool sosActive})>(
       selector: (_, provider) => (
-        role: provider.currentUser?.role ?? UserRole.patient,
+        role: provider.currentUser?.role ?? UserRole.user,
         sosActive: provider.sosActive,
       ),
       builder: (context, data, _) {

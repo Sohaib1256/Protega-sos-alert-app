@@ -192,13 +192,13 @@ void onStart(ServiceInstance service) async {
       debugPrint('BG_SERVICE_TRIGGER: Starting audioplayer reinforcement loop');
       try {
         isAlarmPlaying = true;
-        if (localAlarmPath != null && File(localAlarmPath!).existsSync()) {
-           await audioPlayer.play(DeviceFileSource(localAlarmPath!), volume: 1.0);
+        if (localAlarmPath != null && File(localAlarmPath).existsSync()) {
+           await audioPlayer.play(DeviceFileSource(localAlarmPath), volume: 1.0);
         } else {
            debugPrint('BG_SERVICE_TRIGGER: Local alarm path invalid, attempting fallback to AssetSource.');
            await audioPlayer.play(AssetSource('sounds/alarm.mp3'), volume: 1.0);
         }
-        print("DEBUG_AUDIO: Play command executed successfully!");
+        debugPrint("DEBUG_AUDIO: Play command executed successfully!");
       } catch (e) {
         debugPrint('BG_SERVICE_TRIGGER: audioPlayer.play() failed: $e');
         isAlarmPlaying = false;

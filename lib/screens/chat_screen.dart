@@ -398,29 +398,15 @@ class _ChatScreenState extends State<ChatScreen> {
 
                     ),
 
-                    Text(
-
-                      isAI
-
-                          ? 'Medical Safety Assistant'
-
-                          : 'Online',
-
-                      style: TextStyle(
-
-                        fontSize: 11,
-
-                        color: isAI
-
-                            ? AppTheme.accentIndigo
-
-                            : AppTheme.success,
-
-                        fontWeight: FontWeight.w500,
-
+                    if (isAI)
+                      Text(
+                        'Medical Safety Assistant',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.accentIndigo,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-
-                    ),
 
                   ],
 

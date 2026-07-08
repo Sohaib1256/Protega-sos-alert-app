@@ -90,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
         if (user == null) return const SizedBox.shrink();
 
-
+        final isGuardian = user.role == UserRole.guardian;
 
         return SingleChildScrollView(
 
@@ -162,60 +162,63 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
               const SizedBox(height: 14),
 
-              _buildSection(
+              if (!isGuardian)
+                _buildSection(
 
-                'Emergency Gestures',
+                  'Emergency Gestures',
 
-                [
-                  _buildGestureOption(
-                    provider,
-                    'Disabled',
-                    'No gesture shortcut',
-                    Icons.block_rounded,
-                    'disabled',
-                  ),
-                  _buildGestureOption(
-                    provider,
-                    'Triple-Tap Screen',
-                    'Tap screen 3× rapidly to trigger SOS',
-                    Icons.touch_app_rounded,
-                    'triple_tap',
-                  ),
-                  _buildGestureOption(
-                    provider,
-                    'Volume Key Combo',
-                    'Press Volume Up 3× rapidly to trigger SOS',
-                    Icons.volume_up_rounded,
-                    'volume_key',
-                  ),
+                  [
+                    _buildGestureOption(
+                      provider,
+                      'Disabled',
+                      'No gesture shortcut',
+                      Icons.block_rounded,
+                      'disabled',
+                    ),
+                    _buildGestureOption(
+                      provider,
+                      'Triple-Tap Screen',
+                      'Tap screen 3× rapidly to trigger SOS',
+                      Icons.touch_app_rounded,
+                      'triple_tap',
+                    ),
+                    _buildGestureOption(
+                      provider,
+                      'Volume Key Combo',
+                      'Press Volume Up 3× rapidly to trigger SOS',
+                      Icons.volume_up_rounded,
+                      'volume_key',
+                    ),
 
-                ],
+                  ],
 
-              )
+                )
 
-                  .animate()
+                    .animate()
 
-                  .fadeIn(delay: 250.ms, duration: 500.ms)
+                    .fadeIn(delay: 250.ms, duration: 500.ms)
 
-                  .slideY(begin: 0.05),
+                    .slideY(begin: 0.05),
 
-              const SizedBox(height: 14),
+              if (!isGuardian)
+                const SizedBox(height: 14),
 
               _buildSection(
                 'System Permissions & Status',
                 [
-                  _buildStatusTile(
-                    title: 'Background Hardware Gestures',
-                    isOk: _isAccessibilityEnabled,
-                    actionText: 'Enable Layer',
-                    onAction: () async {
-                      const platform = MethodChannel('com.example.protega/gesture');
-                      await platform.invokeMethod('openAccessibilitySettings');
-                      // Wait a bit before re-checking
-                      await Future.delayed(const Duration(seconds: 1));
-                      _checkSystemStatus();
-                    },
-                  ),
+                  if (!isGuardian)
+                    _buildStatusTile(
+                      title: 'Background Hardware Gestures',
+                      isOk: _isAccessibilityEnabled,
+                      actionText: 'Enable Layer',
+                      onAction: () async {
+                        const platform = MethodChannel('com.example.protega/gesture');
+                        await platform.invokeMethod('openAccessibilitySettings');
+                        // Wait a bit before re-checking
+                        await Future.delayed(const Duration(seconds: 1));
+                        _checkSystemStatus();
+                      },
+                    ),
                   _buildStatusTile(
                     title: 'Battery Optimization',
                     isOk: _isBatteryUnrestricted,
@@ -233,31 +236,33 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                   .fadeIn(delay: 200.ms, duration: 500.ms)
                   .slideY(begin: 0.05),
 
-              const SizedBox(height: 14),
+              if (!isGuardian)
+                const SizedBox(height: 14),
 
-              _buildSection(
+              if (!isGuardian)
+                _buildSection(
 
-                'Emergency Contacts',
+                  'Emergency Contacts',
 
-                [
+                  [
 
-                  ...provider.emergencyContacts.map(
+                    ...provider.emergencyContacts.map(
 
-                        (c) => _buildContactTile(c, provider),
+                          (c) => _buildContactTile(c, provider),
 
-                  ),
+                    ),
 
-                  _buildAddContactTile(context),
+                    _buildAddContactTile(context),
 
-                ],
+                  ],
 
-              )
+                )
 
-                  .animate()
+                    .animate()
 
-                  .fadeIn(delay: 300.ms, duration: 500.ms)
+                    .fadeIn(delay: 300.ms, duration: 500.ms)
 
-                  .slideY(begin: 0.05),
+                    .slideY(begin: 0.05),
 
               const SizedBox(height: 14),
 

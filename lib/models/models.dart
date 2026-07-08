@@ -3,16 +3,13 @@ import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
 
-enum UserRole { patient, guardian, caretaker, safetyOfficer }
-
-enum UserPurpose { medical, personal }
+enum UserRole { user, guardian }
 
 class UserModel {
  final String id;
  final String name;
  final String email;
  final UserRole role;
- final UserPurpose purpose;
  final String? guardianPhone;
  final String phone;
  final String countryCode;
@@ -34,7 +31,6 @@ class UserModel {
  required this.name,
  required this.email,
  required this.role,
- required this.purpose,
  this.guardianPhone,
  this.phone = '',
  this.countryCode = '+92',
@@ -62,7 +58,6 @@ this.lat,
     String? name,
     String? email,
     UserRole? role,
-    UserPurpose? purpose,
     String? guardianPhone,
     String? phone,
     String? countryCode,
@@ -84,7 +79,6 @@ this.lat,
       name: name ?? this.name,
       email: email ?? this.email,
       role: role ?? this.role,
-      purpose: purpose ?? this.purpose,
       guardianPhone: guardianPhone ?? this.guardianPhone,
       phone: phone ?? this.phone,
       countryCode: countryCode ?? this.countryCode,
@@ -103,30 +97,30 @@ this.lat,
     );
   }
 
- String get displayRole {
-switch (role) {
-case UserRole.patient:
- return 'Patient';
- case UserRole.guardian:
-return 'Guardian';
- case UserRole.caretaker:
-return 'Caretaker';
- case UserRole.safetyOfficer:
- return 'Safety Officer';
- }
- }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserModel && runtimeType == other.runtimeType && id == other.id;
 
- IconData get roleIcon {
+  @override
+  int get hashCode => id.hashCode;
+
+ String get displayRole {
  switch (role) {
- case UserRole.patient:
- return Icons.favorite_rounded;
- case UserRole.guardian:
- return Icons.shield_rounded;
- case UserRole.caretaker:
- return Icons.volunteer_activism_rounded;
- case UserRole.safetyOfficer:
- return Icons.local_police_rounded;
- }}
+ case UserRole.user:
+  return 'User';
+  case UserRole.guardian:
+ return 'Guardian';
+  }
+  }
+
+  IconData get roleIcon {
+  switch (role) {
+  case UserRole.user:
+  return Icons.person_rounded;
+  case UserRole.guardian:
+  return Icons.shield_rounded;
+  }}
 }
 
 class AlertModel {

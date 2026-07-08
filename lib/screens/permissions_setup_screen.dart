@@ -4,12 +4,14 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import '../theme/theme.dart';
+import '../models/models.dart';
 
 /// Full-screen onboarding permissions setup.
 /// Shown once after first login. Re-checks permissions on every HomeShell init.
 class PermissionsSetupScreen extends StatefulWidget {
   final VoidCallback onComplete;
-  const PermissionsSetupScreen({super.key, required this.onComplete});
+  final UserRole role;
+  const PermissionsSetupScreen({super.key, required this.onComplete, required this.role});
 
   @override
   State<PermissionsSetupScreen> createState() => _PermissionsSetupScreenState();
@@ -18,51 +20,68 @@ class PermissionsSetupScreen extends StatefulWidget {
 class _PermissionsSetupScreenState extends State<PermissionsSetupScreen> {
   int _currentStep = 0;
   bool _processing = false;
+  late final List<_PermStep> _steps;
 
-  final List<_PermStep> _steps = [
-    _PermStep(
-      icon: Icons.location_on_rounded,
-      color: Color(0xFF4FC3F7),
-      title: 'Precise Location',
-      description:
-          'Protega needs your precise location to share it with guardians during emergencies and display your real-time position on the map.',
-      permission: Permission.locationWhenInUse,
-    ),
-    _PermStep(
-      icon: Icons.gps_fixed_rounded,
-      color: Color(0xFF81C784),
-      title: 'Location Accuracy',
-      description:
-          'For a better experience, your device will need to use High-Accuracy Location powered by Google Play Services.',
-      permission: null, // handled separately with the `location` package
-    ),
-    _PermStep(
-      icon: Icons.phone_rounded,
-      color: Color(0xFFE57373),
-      title: 'Phone Calls',
-      description:
-          'Allow Protega to make and manage phone calls so it can automatically dial your emergency contacts when SOS is triggered.',
-      permission: Permission.phone,
-    ),
-
-    _PermStep(
-      icon: Icons.settings_accessibility,
-      color: Color(0xFFAB47BC),
-      title: 'Background Hardware SOS',
-      description:
-          'Allow Protega to monitor your device\'s hardware volume buttons to trigger emergency SOS alerts even when the screen is locked.',
-      permission: null, // Custom MethodChannel handling
-    ),
-    _PermStep(
-      icon: Icons.battery_charging_full_rounded,
-      color: Color(0xFFFFB74D),
-      title: 'System Stability & Sleep Prevention (Required)',
-      description:
-          'To trigger the SOS when your screen is turned off or locked, you must grant these two settings on the next screen:\n1. Tap \'Battery\' -> Select \'Unrestricted\'\n2. Toggle OFF \'Remove permissions if app is unused\'',
-      permission: null,
-      actionText: 'Configure Stability',
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    if (widget.role == UserRole.guardian) {
+      _steps = [
+        _PermStep(
+          icon: Icons.notifications_active_rounded,
+          color: Color(0xFF4FC3F7),
+          title: 'Notifications',
+          description:
+              'Protega needs notification permissions to immediately alert you when one of your monitored users triggers an SOS.',
+          permission: Permission.notification,
+        ),
+      ];
+    } else {
+      _steps = [
+        _PermStep(
+          icon: Icons.location_on_rounded,
+          color: Color(0xFF4FC3F7),
+          title: 'Precise Location',
+          description:
+              'Protega needs your precise location to share it with guardians during emergencies and display your real-time position on the map.',
+          permission: Permission.locationWhenInUse,
+        ),
+        _PermStep(
+          icon: Icons.gps_fixed_rounded,
+          color: Color(0xFF81C784),
+          title: 'Location Accuracy',
+          description:
+              'For a better experience, your device will need to use High-Accuracy Location powered by Google Play Services.',
+          permission: null,
+        ),
+        _PermStep(
+          icon: Icons.phone_rounded,
+          color: Color(0xFFE57373),
+          title: 'Phone Calls',
+          description:
+              'Allow Protega to make and manage phone calls so it can automatically dial your emergency contacts when SOS is triggered.',
+          permission: Permission.phone,
+        ),
+        _PermStep(
+          icon: Icons.settings_accessibility,
+          color: Color(0xFFAB47BC),
+          title: 'Background Hardware SOS',
+          description:
+              'Allow Protega to monitor your device\'s hardware volume buttons to trigger emergency SOS alerts even when the screen is locked.',
+          permission: null,
+        ),
+        _PermStep(
+          icon: Icons.battery_charging_full_rounded,
+          color: Color(0xFFFFB74D),
+          title: 'System Stability & Sleep Prevention (Required)',
+          description:
+              'To trigger the SOS when your screen is turned off or locked, you must grant these two settings on the next screen:\n1. Tap \'Battery\' -> Select \'Unrestricted\'\n2. Toggle OFF \'Remove permissions if app is unused\'',
+          permission: null,
+          actionText: 'Configure Stability',
+        ),
+      ];
+    }
+  }
 
   Future<void> _handleGrant() async {
     if (_processing) return;
@@ -291,11 +310,13 @@ class _PermStep {
 /// Utility to re-verify critical permissions at runtime.
 /// Returns a list of permissions that are currently denied.
 class PermissionChecker {
-  static Future<List<Permission>> getMissingPermissions() async {
-    final required = [
-      Permission.locationWhenInUse,
-      Permission.phone,
-    ];
+  static Future<List<Permission>> getMissingPermissions(UserRole role) async {
+    final required = role == UserRole.guardian 
+      ? [Permission.notification]
+      : [
+          Permission.locationWhenInUse,
+          Permission.phone,
+        ];
     final missing = <Permission>[];
     for (final p in required) {
       if (!(await p.isGranted)) {

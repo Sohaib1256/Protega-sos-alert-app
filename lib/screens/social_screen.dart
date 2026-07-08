@@ -607,13 +607,39 @@ class _SocialScreenState extends State<SocialScreen> {
 
           ),
 
-          Icon(
-
-            Icons.chevron_right_rounded,
-
-            size: 20,
-
-          ),
+          if (!friend.isAI)
+            IconButton(
+              icon: const Icon(Icons.person_remove_rounded, size: 20, color: Colors.white54),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: const Color(0xFF1A1F2C),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    title: const Text('Remove Connection', style: TextStyle(color: Colors.white)),
+                    content: const Text('Are you sure you want to remove this connection?', style: TextStyle(color: Colors.white70)),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          context.read<AppProvider>().removeConnection(friend.id);
+                        },
+                        child: const Text('Remove', style: TextStyle(color: AppTheme.danger)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            )
+          else
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+            ),
 
         ],
 

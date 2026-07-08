@@ -63,8 +63,8 @@ class AppProvider with ChangeNotifier {
   List<AlertModel> get alerts => _alerts;
   List<AlertModel> get activeAlerts => _alerts.where((a) => a.isActive).toList();
   Map<String, List<ChatMessage>> get messages => _chatMessages;
-  List<FriendModel> get friends => _friends;
-  List<FriendModel> get friendRequests => _friendRequests;
+  List<FriendModel> get friends => _friends.toSet().toList();
+  List<FriendModel> get friendRequests => _friendRequests.toSet().toList();
   List<NotificationItem> get notifications => _notifications;
   List<NotificationItem> get unreadNotifications => _notifications.where((n) => !n.isRead).toList();
   List<EmergencyContact> get emergencyContacts => _emergencyContacts;
@@ -102,10 +102,8 @@ class AppProvider with ChangeNotifier {
   // Get all users (for guardian to see their patients)
   List<UserModel> get patients {
     if (_currentUser == null) return [];
-    if (_currentUser!.role == UserRole.guardian ||
-        _currentUser!.role == UserRole.caretaker ||
-        _currentUser!.role == UserRole.safetyOfficer) {
-      return _users.where((u) => u.role == UserRole.patient).toList();
+    if (_currentUser!.role == UserRole.guardian) {
+      return _users.where((u) => u.role == UserRole.user).toSet().toList();
     }
     return [];
   }
@@ -218,7 +216,6 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
         name: _currentUser!.name,
         email: _currentUser!.email,
         role: _currentUser!.role,
-        purpose: _currentUser!.purpose,
         lat: lat,
         lng: lng,
         phone: _currentUser!.phone,
@@ -345,7 +342,6 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
           name: data['name'] ?? 'Unknown',
           email: data['email'] ?? '',
           role: _parseRole(data['role']),
-          purpose: _parsePurpose(data['purpose']),
           phone: data['phone'] ?? '',
           guardianPhone: data['guardianPhone'],
           occupation: data['occupation'],
@@ -395,6 +391,8 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
 
   void triggerSOS() {
     if (_currentUser == null) return;
+    // Guardians never trigger SOS — they only receive alerts
+    if (_currentUser!.role == UserRole.guardian) return;
 
     _isSOSActive = true;
 
@@ -599,6 +597,8 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
     _deviceSubscription = null;
     _alertsSubscription?.cancel();
     _alertsSubscription = null;
+    _friendAlertsSubscription?.cancel();
+    _friendAlertsSubscription = null;
     await _auth.signOut();
     _friends.clear();
     _alerts.clear();
@@ -611,7 +611,6 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
     required String email,
     required String password,
     required UserRole role,
-    required UserPurpose purpose,
     String? guardianPhone,
     String? phone,
   }) async {
@@ -626,20 +625,10 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
         password: password,
       );
 
-      // 2. Generate Custom ID (PID/UID/GID) for display/search
+      // 2. Generate Custom ID (UID/GID) for display/search
       String idPrefix;
-      if (role == UserRole.patient) {
-        if (purpose == UserPurpose.medical) {
-          idPrefix = 'PID';
-        } else {
-          idPrefix = 'UID'; // Personal use
-        }
-      } else if (role == UserRole.guardian) {
+      if (role == UserRole.guardian) {
         idPrefix = 'GID';
-      } else if (role == UserRole.caretaker) {
-        idPrefix = 'CID';
-      } else if (role == UserRole.safetyOfficer) {
-        idPrefix = 'OID';
       } else {
         idPrefix = 'UID';
       }
@@ -652,10 +641,9 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
         name: name,
         email: email,
         role: role,
-        purpose: purpose,
         guardianPhone: guardianPhone,
         phone: phone ?? '',
-        occupation: role == UserRole.patient ? 'Patient' : 'Guardian',
+        occupation: role == UserRole.user ? 'User' : 'Guardian',
       );
 
       // 4. Save to Firestore using Auth UID as Document ID
@@ -664,7 +652,6 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
         'name': newUser.name,
         'email': newUser.email,
         'role': newUser.role.toString().split('.').last,
-        'purpose': newUser.purpose.toString().split('.').last,
         'phone': newUser.phone,
         'guardianPhone': newUser.guardianPhone,
         'occupation': newUser.occupation,
@@ -705,7 +692,6 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
           name: data['name'] ?? 'Unknown',
           email: data['email'] ?? user.email!,
           role: _parseRole(data['role']),
-          purpose: _parsePurpose(data['purpose']),
           phone: data['phone'] ?? '',
           guardianPhone: data['guardianPhone'],
           occupation: data['occupation'],
@@ -729,6 +715,11 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
         // Start real-time alert stream for live updates
         _listenToAlerts();
 
+        // Guardian-specific: monitor friends' SOS alerts in real-time
+        if (_currentUser!.role == UserRole.guardian) {
+          _listenToFriendAlerts();
+        }
+
         // Start listening to device if configured
         if (_currentUser!.deviceConfigured && _currentUser!.deviceId != null) {
           _listenToDevice(_currentUser!.deviceId!);
@@ -740,16 +731,14 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
   // Parsers for Enums
   UserRole _parseRole(String? roleStr) {
     switch (roleStr) {
-      case 'patient': return UserRole.patient;
+      case 'user': return UserRole.user;
       case 'guardian': return UserRole.guardian;
-      case 'caretaker': return UserRole.caretaker;
-      case 'safetyOfficer': return UserRole.safetyOfficer;
-      default: return UserRole.patient;
+      // Backwards compatibility: map legacy roles to UserRole.user
+      case 'patient': return UserRole.user;
+      case 'caretaker': return UserRole.user;
+      case 'safetyOfficer': return UserRole.user;
+      default: return UserRole.user;
     }
-  }
-
-  UserPurpose _parsePurpose(String? purposeStr) {
-    return purposeStr == 'personal' ? UserPurpose.personal : UserPurpose.medical;
   }
   
   Future<void> _fetchFriends() async {
@@ -757,6 +746,7 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
     
     _friends.clear();
     _friendRequests.clear();
+    _users.clear();
 
     // AI Assistant
     _friends.add(FriendModel(
@@ -781,6 +771,20 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
               avatarUrl: data['avatarUrl'] ?? 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(data['name'])}&background=random',
               isOnline: data['isOnline'] ?? false,
               isAI: false,
+            ));
+            
+            _users.add(UserModel(
+              id: data['id'],
+              name: data['name'],
+              email: data['email'] ?? '',
+              avatarUrl: data['avatarUrl'] ?? 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(data['name'])}&background=random',
+              role: _parseRole(data['role']),
+              isOnline: data['isOnline'] ?? false,
+              batteryLevel: data['batteryLevel'] ?? 100,
+              deviceConfigured: data['deviceConfigured'] ?? false,
+              lat: data['lat'],
+              lng: data['lng'],
+              deviceId: data['deviceId'],
             ));
           }
         }
@@ -808,6 +812,33 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
       debugPrint("Error fetching friend data: $e");
     }
   }
+
+  Future<void> removeConnection(String targetUid) async {
+    if (_currentUser == null) return;
+    try {
+      final batch = _firestore.batch();
+      
+      final currentUserRef = _firestore.collection('users').doc(_currentUser!.id);
+      batch.update(currentUserRef, {
+        'friends': FieldValue.arrayRemove([targetUid]),
+      });
+      
+      final targetUserRef = _firestore.collection('users').doc(targetUid);
+      batch.update(targetUserRef, {
+        'friends': FieldValue.arrayRemove([_currentUser!.id]),
+      });
+      
+      await batch.commit();
+      
+      _currentUser!.friends.remove(targetUid);
+      _friends.removeWhere((f) => f.id == targetUid);
+      _users.removeWhere((u) => u.id == targetUid);
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error removing connection: $e");
+    }
+  }
+
 
   Future<void> fetchAlertHistory() async {
     if (_auth.currentUser == null) return;
@@ -878,6 +909,52 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
       notifyListeners();
     }, onError: (e) {
       debugPrint('Alert stream error: $e');
+    });
+  }
+
+  /// Guardian-only: subscribe to friends' active SOS alerts.
+  /// When a friend's SOS is detected, trigger the local alarm on the Guardian's phone.
+  StreamSubscription? _friendAlertsSubscription;
+
+  void _listenToFriendAlerts() {
+    _friendAlertsSubscription?.cancel();
+    if (_currentUser == null || _currentUser!.friends.isEmpty) return;
+
+    _friendAlertsSubscription = _firestore
+        .collection('alerts')
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .listen((snapshot) {
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final alertUserId = data['userId'] as String?;
+        // Check if this alert is from one of the Guardian's friends
+        if (alertUserId != null && _currentUser!.friends.contains(alertUserId)) {
+          if (!_isSOSActive) {
+            _isSOSActive = true;
+            // Trigger alarm sound on Guardian's phone
+            FlutterBackgroundService().invoke("triggerAlarm");
+            _notifications.insert(
+              0,
+              NotificationItem(
+                title: '\u{1F6A8} Friend SOS Alert!',
+                message: '${data['userName'] ?? 'A friend'} has triggered an emergency SOS',
+                type: 'sos',
+              ),
+            );
+            notifyListeners();
+          }
+          return; // Only trigger once per snapshot
+        }
+      }
+      // If no active friend alerts remain, reset
+      if (_isSOSActive && _currentUser!.role == UserRole.guardian) {
+        _isSOSActive = false;
+        FlutterBackgroundService().invoke("stopAlarm");
+        notifyListeners();
+      }
+    }, onError: (e) {
+      debugPrint('Friend alert stream error: $e');
     });
   }
 
@@ -1026,7 +1103,6 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
       name: _currentUser!.name,
       email: _currentUser!.email,
       role: _currentUser!.role,
-      purpose: _currentUser!.purpose,
       guardianPhone: _currentUser!.guardianPhone,
       phone: _currentUser!.phone,
       countryCode: _currentUser!.countryCode,
@@ -1070,7 +1146,6 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
       name: _currentUser!.name,
       email: _currentUser!.email,
       role: _currentUser!.role,
-      purpose: _currentUser!.purpose,
       guardianPhone: _currentUser!.guardianPhone,
       phone: _currentUser!.phone,
       countryCode: _currentUser!.countryCode,
@@ -1114,14 +1189,15 @@ If a user asks for nearby hospitals or medical facilities, politely inform them 
       final content = [Content.text(userMessage)];
       final response = await _model.generateContent(content).timeout(const Duration(seconds: 10));
       return response.text ?? 'No response generated.';
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('Gemini API Error: $e');
+        debugPrint('Gemini API Error details: $e');
+        debugPrint('Stack trace: $stackTrace');
       }
       if (e.toString().contains('503')) {
         return 'Error: Protega AI is currently experiencing high demand. Please try again in a few moments.';
       }
-      return 'Error: Unable to process request. Please try again later.';
+      return 'AI Unavailable: Unable to process request. Please try again later. ($e)';
     }
   }
 

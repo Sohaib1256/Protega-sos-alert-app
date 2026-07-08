@@ -51,6 +51,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/sounds/
   fonts:
     - family: Inter

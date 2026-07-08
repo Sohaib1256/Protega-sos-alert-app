@@ -189,6 +189,7 @@ class _AppRootState extends State<AppRoot> {
             // 2. First-time setup check
             if (!_setupComplete) {
               return PermissionsSetupScreen(
+                role: provider.currentUser!.role,
                 onComplete: _markSetupDone,
               );
             }
