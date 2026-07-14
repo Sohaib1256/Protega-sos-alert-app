@@ -1,10 +1,11 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
-import '../providers/app_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/emergency_provider.dart';
+import '../providers/social_provider.dart';
 import '../theme/theme.dart';
 import '../widgets/glass_card.dart';
 
@@ -13,61 +14,59 @@ class GuardianDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppProvider>(
-      builder: (context, provider, _) {
-        final user = provider.currentUser;
-        if (user == null) return const SizedBox.shrink();
+    final auth = context.watch<AuthProvider>();
+    final user = auth.currentUser;
+    if (user == null) return const SizedBox.shrink();
 
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(user)
-                  .animate()
-                  .fadeIn(duration: 500.ms)
-                  .slideX(begin: -0.05),
-              const SizedBox(height: 16),
-              _buildStatsGrid(provider)
-                  .animate()
-                  .fadeIn(delay: 100.ms, duration: 500.ms)
-                  .slideY(begin: 0.05),
-              if (provider.activeAlerts.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                _buildActiveAlertBanner(context, provider.activeAlerts.first),
-              ],
-              const SizedBox(height: 20),
-              _buildSectionTitle(
-                'Monitored Patients',
-                trailing: '${provider.monitoredPatients.length} Active',
-              ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
-              const SizedBox(height: 10),
-              ...provider.monitoredPatients.asMap().entries.map(
-                    (entry) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _buildPatientCard(entry.value)
-                        .animate()
-                        .fadeIn(
-                      delay: Duration(milliseconds: 250 + entry.key * 80),
-                      duration: 500.ms,
-                    )
-                        .slideX(begin: 0.05),
-                  );
-                },
-              ),
+    final emProvider = context.watch<EmergencyProvider>();
+    final socialProvider = context.watch<SocialProvider>();
+
+    return SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(user)
+              .animate()
+              .fadeIn(duration: 500.ms)
+              .slideX(begin: -0.05),
+            const SizedBox(height: 16),
+            _buildStatsGrid(emProvider, socialProvider)
+              .animate()
+              .fadeIn(delay: 100.ms, duration: 500.ms)
+              .slideY(begin: 0.05),
+            if (emProvider.activeAlerts.isNotEmpty) ...[
               const SizedBox(height: 14),
-              _buildAddPatientButton(context)
-                  .animate()
-                  .fadeIn(delay: 500.ms, duration: 500.ms),
-              const SizedBox(height: 100),
+              _buildActiveAlertBanner(context, emProvider.activeAlerts.first),
             ],
-          ),
-          ),
-        );
-      },
+            const SizedBox(height: 20),
+            _buildSectionTitle(
+              'Monitored Patients',
+              trailing: '${socialProvider.monitoredPatients.length} Active',
+            ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
+            const SizedBox(height: 10),
+            ...socialProvider.monitoredPatients.asMap().entries.map(
+                  (entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildPatientCard(context, entry.value)
+                      .animate()
+                      .fadeIn(
+                    delay: Duration(milliseconds: 250 + entry.key * 80),
+                    duration: 500.ms,
+                  )
+                      .slideX(begin: 0.05),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            _buildAddPatientButton(context)
+                .animate()
+                .fadeIn(delay: 500.ms, duration: 500.ms),
+            const SizedBox(height: 100),
+          ],
+        ),
     );
   }
 
@@ -124,7 +123,7 @@ class GuardianDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsGrid(AppProvider provider) {
+  Widget _buildStatsGrid(EmergencyProvider emProvider, SocialProvider socialProvider) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -134,7 +133,7 @@ class GuardianDashboard extends StatelessWidget {
               icon: Icons.people_rounded,
               iconColor: AppTheme.accent,
               label: 'Monitored',
-              value: '${provider.monitoredPatients.length}',
+              value: '${socialProvider.monitoredPatients.length}',
             ),
           ),
           SizedBox(width: 10),
@@ -151,11 +150,11 @@ class GuardianDashboard extends StatelessWidget {
           Expanded(
             child: _StatCard(
               icon: Icons.warning_rounded,
-              iconColor: provider.activeAlerts.isNotEmpty
+              iconColor: emProvider.activeAlerts.isNotEmpty
                   ? AppTheme.danger
                   : AppTheme.textMuted,
               label: 'Alerts',
-              value: '${provider.activeAlerts.length}',
+              value: '${emProvider.activeAlerts.length}',
             ),
           ),
         ],
@@ -282,7 +281,7 @@ class GuardianDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildPatientCard(UserModel patient) {
+  Widget _buildPatientCard(BuildContext context, UserModel patient) {
     final isOnline = patient.isOnline;
     return GlassCard(
       padding: const EdgeInsets.all(14),
@@ -333,16 +332,6 @@ class GuardianDashboard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    GlassChip(
-                      label: isOnline ? 'Online' : 'Offline',
-                      color: isOnline ? AppTheme.success : AppTheme.textMuted,
-                      isActive: isOnline,
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -365,7 +354,7 @@ class GuardianDashboard extends StatelessWidget {
                       TextButton(
                         onPressed: () {
                           Navigator.pop(dialogCtx);
-                          ctx.read<AppProvider>().removeConnection(patient.id);
+                          ctx.read<SocialProvider>().removeConnection(patient.id);
                         },
                         child: const Text('Remove', style: TextStyle(color: AppTheme.danger)),
                       ),
@@ -448,177 +437,176 @@ class GuardianDashboard extends StatelessWidget {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             return Container(
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    24,
-                    24,
-                    MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.paddingOf(ctx).bottom + 24,
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.paddingOf(ctx).bottom + 24,
+              ),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(30),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
-                    border: Border.all(color: Theme.of(context).dividerColor),
+                  SizedBox(height: 20),
+                  Text(
+                    'Add Patient',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withAlpha(30),
-                            borderRadius: BorderRadius.circular(2),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Search by Patient ID (e.g., PID-A1B2C3)',
+                    style: TextStyle(
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: searchCtrl,
+                    style: TextStyle(
+                      fontSize: 14,
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter Patient ID',
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  GestureDetector(
+                    onTap: () async {
+                      final provider = ctx.read<SocialProvider>();
+                      final result =
+                      await provider.searchUserById(searchCtrl.text.trim());
+                      setModalState(() {
+                        found = result;
+                        searchError =
+                        result == null ? 'No user found with that ID' : null;
+                      });
+                    },
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: AppTheme.accent,
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Search',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
                           ),
                         ),
                       ),
-                      SizedBox(height: 20),
-                      Text(
-                        'Add Patient',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        textAlign: TextAlign.center,
+                    ),
+                  ),
+                  if (searchError != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      searchError!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.danger,
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Search by Patient ID (e.g., PID-A1B2C3)',
-                        style: TextStyle(
-                          fontSize: 12,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  if (found != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(8),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppTheme.accent.withAlpha(60),
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: searchCtrl,
-                        style: TextStyle(
-                          
-                          fontSize: 14,
-                        ),
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: const InputDecoration(
-                          hintText: 'Enter Patient ID',
-                          prefixIcon: Icon(
-                            Icons.search_rounded,
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundImage: NetworkImage(found!.avatarUrl),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      GestureDetector(
-                        onTap: () async {
-                          final provider = ctx.read<AppProvider>();
-                          final result =
-                          await provider.searchUserById(searchCtrl.text.trim());
-                          setModalState(() {
-                            found = result;
-                            searchError =
-                            result == null ? 'No user found with that ID' : null;
-                          });
-                        },
-                        child: Container(
-                          height: 48,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            color: AppTheme.accent,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  found!.name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  found!.id,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Center(
-                            child: Text(
-                              'Search',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                          GestureDetector(
+                            onTap: () {
+                              ctx
+                                  .read<SocialProvider>()
+                                  .addMonitoredPatient(found!.id);
+                              Navigator.pop(ctx);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accent.withAlpha(25),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppTheme.accent.withAlpha(60),
+                                ),
+                              ),
+                              child: const Text(
+                                'Add',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.accent,
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                      if (searchError != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          searchError!,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.danger,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                      if (found != null) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withAlpha(8),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: AppTheme.accent.withAlpha(60),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 20,
-                                backgroundImage: NetworkImage(found!.avatarUrl),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      found!.name,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    Text(
-                                      found!.id,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  ctx
-                                      .read<AppProvider>()
-                                      .addMonitoredPatient(found!.id);
-                                  Navigator.pop(ctx);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.accent.withAlpha(25),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: AppTheme.accent.withAlpha(60),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Add',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.accent,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                  ],
+                ],
+              ),
             );
           },
         );
@@ -680,9 +668,6 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
-
-
-// --- Missing Classes ---
 
 class GlassChip extends StatelessWidget {
   final String label;

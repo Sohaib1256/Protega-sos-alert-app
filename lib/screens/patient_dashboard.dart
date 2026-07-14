@@ -3,14 +3,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
-import '../providers/app_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/emergency_provider.dart';
+import '../providers/hardware_provider.dart';
 import '../theme/theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/sos_button.dart';
-
-// If GlassChip is in ../widgets/glass_chip.dart, keep this import.
-// If not, use the class definition at the bottom of this file.
-// import '../widgets/glass_chip.dart';
 
 class PatientDashboard extends StatefulWidget {
   const PatientDashboard({super.key});
@@ -29,17 +27,16 @@ class _PatientDashboardState extends State<PatientDashboard> {
   void _requestLocation() {
     Future.delayed(const Duration(seconds: 1), () {
       if (!mounted) return;
-      final provider = context.read<AppProvider>();
+      final provider = context.read<EmergencyProvider>();
       provider.fetchUserLocation();
     });
   }
 
   void _openMapsLink() async {
-    final provider = context.read<AppProvider>();
-    final lat = provider.userLat;
-    final lng = provider.userLng;
+    final auth = context.read<AuthProvider>();
+    final lat = auth.userLat;
+    final lng = auth.userLng;
 
-    // userLat is double, checking != 0.0 is safer than null if it defaults to 0.0
     if (lat != 0.0 && lng != 0.0) {
       final url = Uri.parse('https://www.google.com/maps?q=$lat,$lng');
       if (await canLaunchUrl(url)) {
@@ -49,11 +46,11 @@ class _PatientDashboardState extends State<PatientDashboard> {
   }
 
   void _handleSOSTrigger() {
-    context.read<AppProvider>().triggerSOS();
+    context.read<EmergencyProvider>().triggerSOS();
   }
 
   void _handleCancelSOS() async {
-    final provider = context.read<AppProvider>();
+    final provider = context.read<EmergencyProvider>();
     try {
       await provider.cancelSOS();
       if (!mounted) return;
@@ -75,55 +72,54 @@ class _PatientDashboardState extends State<PatientDashboard> {
   }
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppProvider>(
-      builder: (context, provider, _) {
-        final user = provider.currentUser;
-        if (user == null) return const SizedBox.shrink();
+    final auth = context.watch<AuthProvider>();
+    final user = auth.currentUser;
+    if (user == null) return const SizedBox.shrink();
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              _buildWelcomeHeader(user)
-                  .animate()
-                  .fadeIn(duration: 500.ms)
-                  .slideX(begin: -0.05, end: 0),
-              const SizedBox(height: 16),
-              _buildStatusHUD(provider)
-                  .animate()
-                  .fadeIn(delay: 100.ms, duration: 500.ms)
-                  .slideY(begin: 0.05, end: 0),
-              const SizedBox(height: 24),
-              Center(
-                child: SOSButton(
-                  onTrigger: _handleSOSTrigger,
-                  isActive: provider.sosActive,
-                  // onCancel removed as it was not defined in the widget
-                ),
-              )
-                  .animate()
-                  .fadeIn(delay: 200.ms, duration: 600.ms)
-                  .scale(
-                begin: const Offset(0.8, 0.8),
-                end: const Offset(1.0, 1.0),
-                curve: Curves.elasticOut,
-              ),
-              if (provider.sosActive) ...[
-                const SizedBox(height: 16),
-                _buildSOSActiveCard(provider),
-              ],
-              const SizedBox(height: 24),
-              _buildLocationCard(provider)
-                  .animate()
-                  .fadeIn(delay: 400.ms, duration: 500.ms)
-                  .slideY(begin: 0.05, end: 0),
-              const SizedBox(height: 100),
-            ],
+    final emProvider = context.watch<EmergencyProvider>();
+    final hwProvider = context.watch<HardwareProvider>();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          _buildWelcomeHeader(user)
+              .animate()
+              .fadeIn(duration: 500.ms)
+              .slideX(begin: -0.05, end: 0),
+          const SizedBox(height: 16),
+          _buildStatusHUD(hwProvider, auth)
+              .animate()
+              .fadeIn(delay: 100.ms, duration: 500.ms)
+              .slideY(begin: 0.05, end: 0),
+          const SizedBox(height: 24),
+          Center(
+            child: SOSButton(
+              onTrigger: _handleSOSTrigger,
+              isActive: emProvider.sosActive,
+            ),
+          )
+              .animate()
+              .fadeIn(delay: 200.ms, duration: 600.ms)
+              .scale(
+            begin: const Offset(0.8, 0.8),
+            end: const Offset(1.0, 1.0),
+            curve: Curves.elasticOut,
           ),
-        );
-      },
+          if (emProvider.sosActive) ...[
+            const SizedBox(height: 16),
+            _buildSOSActiveCard(),
+          ],
+          const SizedBox(height: 24),
+          _buildLocationCard(emProvider, auth)
+              .animate()
+              .fadeIn(delay: 400.ms, duration: 500.ms)
+              .slideY(begin: 0.05, end: 0),
+          const SizedBox(height: 100),
+        ],
+      ),
     );
   }
 
@@ -179,32 +175,30 @@ class _PatientDashboardState extends State<PatientDashboard> {
     );
   }
 
-  Widget _buildStatusHUD(AppProvider provider) {
-    final isOnline = provider.isDeviceOnline;
+  Widget _buildStatusHUD(HardwareProvider hwProvider, AuthProvider auth) {
+    final isOnline = hwProvider.isDeviceOnline;
 
     return GlassCard(
       padding: const EdgeInsets.all(16),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _statusItem(
-            'Device',
-            isOnline ? 'Online' : 'Offline',
-            isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
-            isOnline ? AppTheme.success : Theme.of(context).textTheme.bodySmall!.color!,
+          Expanded(
+            child: _statusItem(
+              'Device',
+              isOnline ? 'Online' : 'Offline',
+              isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+              isOnline ? AppTheme.success : Theme.of(context).textTheme.bodySmall!.color!,
+            ),
           ),
           _divider(),
-          _statusItem(
-            'Battery',
-            '--%',
-            Icons.battery_unknown_rounded,
-            Theme.of(context).textTheme.bodySmall!.color!,
-          ),
-          _divider(),
-          _statusItem(
-            'GPS',
-            provider.userLat != 0.0 ? 'Active' : 'Off',
-            Icons.gps_fixed_rounded,
-            provider.userLat != 0.0 ? AppTheme.success : Theme.of(context).textTheme.bodySmall!.color!,
+          Expanded(
+            child: _statusItem(
+              'GPS',
+              auth.userLat != 0.0 ? 'Active' : 'Off',
+              Icons.gps_fixed_rounded,
+              auth.userLat != 0.0 ? AppTheme.success : Theme.of(context).textTheme.bodySmall!.color!,
+            ),
           ),
         ],
       ),
@@ -212,28 +206,26 @@ class _PatientDashboardState extends State<PatientDashboard> {
   }
 
   Widget _statusItem(String label, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 22),
-          SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 22),
+        SizedBox(height: 6),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: color,
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-            ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -245,7 +237,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
     );
   }
 
-  Widget _buildSOSActiveCard(AppProvider provider) {
+  Widget _buildSOSActiveCard() {
     return GlassCard(
       border: Border.all(color: AppTheme.danger.withAlpha(100)),
       color: AppTheme.danger.withAlpha((255 * 0.08).round()),
@@ -365,9 +357,9 @@ class _PatientDashboardState extends State<PatientDashboard> {
     );
   }
 
-  Widget _buildLocationCard(AppProvider provider) {
-    final lat = provider.userLat;
-    final lng = provider.userLng;
+  Widget _buildLocationCard(EmergencyProvider provider, AuthProvider auth) {
+    final lat = auth.userLat;
+    final lng = auth.userLng;
     final isSOSActive = provider.sosActive;
 
     return GlassCard(
@@ -528,8 +520,6 @@ class _PatientDashboardState extends State<PatientDashboard> {
   }
 }
 
-// --- Helper Classes ---
-
 class GlassChip extends StatelessWidget {
   final String label;
   final IconData? icon;
@@ -632,7 +622,6 @@ class _PulsingDotState extends State<PulsingDot>
           height: widget.size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            // Fixed: withOpacity deprecated -> withValues(alpha: ...)
             color: widget.color.withValues(alpha: _animation.value),
           ),
         );

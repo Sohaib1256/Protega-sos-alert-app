@@ -5,7 +5,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../models/models.dart';
-import '../providers/app_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/hardware_provider.dart';
+import '../providers/emergency_provider.dart';
 import '../theme/theme.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -82,11 +84,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   @override
   Widget build(BuildContext context) {
 
-    return Consumer<AppProvider>(
-
-      builder: (context, provider, _) {
-
-        final user = provider.currentUser;
+    return Consumer3<AuthProvider, HardwareProvider, EmergencyProvider>(
+      builder: (context, authProvider, hwProvider, emProvider, _) {
+        final user = authProvider.currentUser;
 
         if (user == null) return const SizedBox.shrink();
 
@@ -142,13 +142,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
                 [
 
-                  _buildFallDetectionTile(provider),
+                  _buildFallDetectionTile(emProvider),
 
-                  if (provider.fallDetectionEnabled)
+                  if (emProvider.fallDetectionEnabled)
 
-                    _buildSensitivitySlider(provider),
+                    _buildSensitivitySlider(emProvider),
 
-                  _buildAlarmSoundTile(provider),
+                  _buildAlarmSoundTile(hwProvider),
 
                 ],
 
@@ -169,27 +169,23 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
                   [
                     _buildGestureOption(
-                      provider,
-                      'Disabled',
-                      'No gesture shortcut',
-                      Icons.block_rounded,
-                      'disabled',
-                    ),
-                    _buildGestureOption(
-                      provider,
-                      'Triple-Tap Screen',
-                      'Tap screen 3× rapidly to trigger SOS',
-                      Icons.touch_app_rounded,
+                      'Triple Tap',
+                      'Tap screen 3 times quickly',
                       'triple_tap',
-                    ),
+                      hwProvider,
+                      Icons.touch_app_rounded),
                     _buildGestureOption(
-                      provider,
-                      'Volume Key Combo',
-                      'Press Volume Up 3× rapidly to trigger SOS',
-                      Icons.volume_up_rounded,
+                      'Volume Keys',
+                      'Press volume up 3 times',
                       'volume_key',
-                    ),
-
+                      hwProvider,
+                      Icons.volume_up_rounded),
+                    _buildGestureOption(
+                      'None',
+                      'Disable gesture triggers',
+                      'none',
+                      hwProvider,
+                      Icons.do_not_disturb_alt_rounded),
                   ],
 
                 )
@@ -246,9 +242,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
                   [
 
-                    ...provider.emergencyContacts.map(
+                    ...emProvider.emergencyContacts.map(
 
-                          (c) => _buildContactTile(c, provider),
+                          (c) => _buildContactTile(c, emProvider),
 
                     ),
 
@@ -272,7 +268,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
                 [
 
-                  _buildDeviceSetupTile(context, provider),
+                  _buildDeviceSetupTile(context, hwProvider, authProvider),
 
                 ],
 
@@ -292,7 +288,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
                 [
 
-                  _buildThemeToggleTile(provider),
+                  _buildThemeToggleTile(hwProvider),
 
                 ],
 
@@ -590,7 +586,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
 
 
-  Widget _buildThemeToggleTile(AppProvider provider) {
+  Widget _buildThemeToggleTile(HardwareProvider provider) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
@@ -637,7 +633,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           ),
           Switch.adaptive(
             value: provider.themeMode == ThemeMode.dark,
-            onChanged: (v) => context.read<AppProvider>().toggleTheme(v),
+            onChanged: (v) => context.read<HardwareProvider>().toggleTheme(v),
             activeTrackColor: AppTheme.accent,
           ),
         ],
@@ -691,7 +687,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
 
 
-  Widget _buildFallDetectionTile(AppProvider provider) {
+  Widget _buildFallDetectionTile(EmergencyProvider provider) {
 
     return Padding(
 
@@ -781,7 +777,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
 
 
-  Widget _buildAlarmSoundTile(AppProvider provider) {
+  Widget _buildAlarmSoundTile(HardwareProvider provider) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(
@@ -828,7 +824,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
 
 
-  Widget _buildSensitivitySlider(AppProvider provider) {
+  Widget _buildSensitivitySlider(EmergencyProvider provider) {
 
     final labels = ['Low', 'Medium', 'High'];
 
@@ -941,11 +937,11 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
 
   Widget _buildGestureOption(
-    AppProvider provider,
     String title,
     String subtitle,
-    IconData icon,
     String value,
+    HardwareProvider provider,
+    IconData icon,
   ) {
     final isSelected = provider.sosGesture == value;
     final color = isSelected ? AppTheme.accent : Theme.of(context).textTheme.bodySmall!.color!;
@@ -1084,7 +1080,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     );
   }
 
-  Widget _buildContactTile(EmergencyContact contact, AppProvider provider) {
+  Widget _buildContactTile(EmergencyContact contact, EmergencyProvider provider) {
 
     return Padding(
 
@@ -1284,11 +1280,11 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
   Widget _buildDeviceSetupTile(
 
-      BuildContext context, AppProvider provider) {
+      BuildContext context, HardwareProvider provider, AuthProvider authProvider) {
 
     return GestureDetector(
 
-      onTap: () => _showDeviceSetup(context, provider),
+      onTap: () => _showDeviceSetup(context, provider, authProvider),
 
       child: Padding(
 
@@ -1627,7 +1623,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                       const SizedBox(height: 20),
                       GestureDetector(
                         onTap: () {
-                          ctx.read<AppProvider>().updateProfile(
+                          ctx.read<AuthProvider>().updateProfile(
                             name: nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : null,
                             occupation: occCtrl.text.trim().isNotEmpty ? occCtrl.text.trim() : null,
                             age: int.tryParse(ageCtrl.text),
@@ -1877,7 +1873,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
 
 
-                          ctx.read<AppProvider>().addEmergencyContact(
+                          ctx.read<EmergencyProvider>().addEmergencyContact(
 
                             EmergencyContact(
 
@@ -1948,7 +1944,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
 
 
-  void _showDeviceSetup(BuildContext context, AppProvider provider) {
+  void _showDeviceSetup(BuildContext context, HardwareProvider provider, AuthProvider authProvider) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1956,7 +1952,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       builder: (ctx) {
         return _DeviceSetupSheet(
           isConfigured: provider.deviceConfigured,
-          deviceId: provider.currentUser?.deviceId,
+          deviceId: authProvider.currentUser?.deviceId,
           onConfigured: (deviceId) {
             provider.configureDevice(deviceId);
             Navigator.pop(ctx);

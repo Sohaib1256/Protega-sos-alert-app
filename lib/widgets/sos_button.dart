@@ -30,7 +30,7 @@ class _SOSButtonState extends State<SOSButton>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: const Duration(milliseconds: 1500),
     );
 
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(

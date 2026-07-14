@@ -71,8 +71,15 @@ class MainActivity: FlutterActivity() {
 
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == "com.example.protega.TRIGGER_SOS") {
-            // Send a safe asynchronous call down to Flutter's state manager
-            methodChannel?.invokeMethod("triggerSOS", null)
+            // Send to Flutter UI — retry with a delay if the engine isn't ready yet
+            if (methodChannel != null) {
+                methodChannel?.invokeMethod("triggerSOS", null)
+            } else {
+                // Engine not ready; post a delayed retry
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    methodChannel?.invokeMethod("triggerSOS", null)
+                }, 1500)
+            }
         }
     }
 

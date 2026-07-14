@@ -6,7 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:provider/provider.dart';
 
-import '../providers/app_provider.dart';
+import '../providers/social_provider.dart';
 
 import '../theme/theme.dart';
 
@@ -74,7 +74,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
 
 
-    final provider = context.read<AppProvider>();
+    final provider = context.read<SocialProvider>();
 
     // Fixed: Use named parameters and pass isAI flag
 
@@ -160,7 +160,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
               Expanded(
 
-                child: Consumer<AppProvider>(
+                child: Consumer<SocialProvider>(
 
                   builder: (context, provider, _) {
 

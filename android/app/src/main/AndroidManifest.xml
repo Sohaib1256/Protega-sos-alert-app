@@ -61,6 +61,13 @@
             android:foregroundServiceType="location|mediaPlayback"
             android:exported="false"
             tools:replace="android:exported" />
+
+        <receiver android:name=".SosBroadcastReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.protega.NATIVE_SOS_TRIGGER" />
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

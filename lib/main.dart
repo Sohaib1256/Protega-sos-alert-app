@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'providers/app_provider.dart';
+import 'providers/auth_provider.dart';
+import 'providers/social_provider.dart';
+import 'providers/hardware_provider.dart';
+import 'providers/emergency_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_shell.dart';
 import 'screens/permissions_setup_screen.dart';
@@ -11,7 +14,7 @@ import 'services/background_service.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'firebase_options.dart';
@@ -98,9 +101,23 @@ class ProtegaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AppProvider(),
-      child: Consumer<AppProvider>(
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, SocialProvider>(
+          create: (_) => SocialProvider(),
+          update: (_, auth, social) => social!..update(auth),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, HardwareProvider>(
+          create: (_) => HardwareProvider(),
+          update: (_, auth, hw) => hw!..update(auth),
+        ),
+        ChangeNotifierProxyProvider2<AuthProvider, HardwareProvider, EmergencyProvider>(
+          create: (_) => EmergencyProvider(),
+          update: (_, auth, hw, em) => em!..update(auth, hw),
+        ),
+      ],
+      child: Consumer<HardwareProvider>(
         builder: (context, provider, child) {
           return MaterialApp(
             title: 'Protega',
@@ -175,7 +192,7 @@ class _AppRootState extends State<AppRoot> {
         }
 
         // Logged in: Wait for provider to load profile data
-        return Consumer<AppProvider>(
+        return Consumer<AuthProvider>(
           builder: (context, provider, _) {
             if (provider.currentUser == null) {
               return Scaffold(

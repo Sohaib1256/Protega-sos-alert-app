@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 
 import 'package:flutter_animate/flutter_animate.dart';
@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../models/models.dart';
 
-import '../providers/app_provider.dart';
+import '../providers/social_provider.dart';
 
 import '../theme/theme.dart';
 
@@ -56,7 +56,7 @@ class _SocialScreenState extends State<SocialScreen> {
 
   Widget build(BuildContext context) {
 
-    return Consumer<AppProvider>(
+    return Consumer<SocialProvider>(
 
       builder: (context, provider, _) {
 
@@ -319,7 +319,33 @@ class _SocialScreenState extends State<SocialScreen> {
     ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.05);
   }
 
-  Widget _buildFriendTile(
+  Widget _buildFriendTile(BuildContext context, FriendModel friend, int index) {
+    if (friend.isAI || friend.uid == null) {
+      return _buildFriendTileContent(context, friend, index);
+    }
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(friend.uid).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return _buildFriendTileContent(context, friend, index);
+        }
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+        final updatedFriend = FriendModel(
+          id: data['id'],
+          uid: friend.uid,
+          name: data['name'] ?? friend.name,
+          avatarUrl: data['avatarUrl'] ?? 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(data['name'] ?? 'U')}&background=random',
+          isOnline: data['isOnline'] ?? false,
+          isAI: false,
+          lastMessage: friend.lastMessage,
+        );
+        return _buildFriendTileContent(context, updatedFriend, index);
+      },
+    );
+  }
+
+  Widget _buildFriendTileContent(
 
       BuildContext context, FriendModel friend, int index) {
 
@@ -626,7 +652,7 @@ class _SocialScreenState extends State<SocialScreen> {
                       TextButton(
                         onPressed: () {
                           Navigator.pop(ctx);
-                          context.read<AppProvider>().removeConnection(friend.id);
+                          context.read<SocialProvider>().removeConnection(friend.id);
                         },
                         child: const Text('Remove', style: TextStyle(color: AppTheme.danger)),
                       ),
@@ -662,79 +688,101 @@ class _SocialScreenState extends State<SocialScreen> {
 
   void _showAddFriendDialog() {
     final controller = TextEditingController();
+    bool isSearching = false;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1F2C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Add Friend',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Enter the unique User ID of your friend/patient.',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1A1F2C),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text(
+              'Add Friend',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'e.g. PID-123456',
-                hintStyle: TextStyle(color: Colors.white.withAlpha(100)),
-                filled: true,
-                fillColor: Colors.white.withAlpha(10),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Enter the unique User ID of your friend/patient.',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  enabled: !isSearching,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'e.g. PID-123456',
+                    hintStyle: TextStyle(color: Colors.white.withAlpha(100)),
+                    filled: true,
+                    fillColor: Colors.white.withAlpha(10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
-            onPressed: () => Navigator.pop(ctx),
-          ),
-          TextButton(
-            child: const Text('Add Friend', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
-            onPressed: () async {
-              final id = controller.text.trim();
-              if (id.isEmpty) return;
-              
-              Navigator.pop(ctx); // Close dialog
-              
-              // Show loading snackbar or just wait
-              ScaffoldMessenger.of(context).showSnackBar(
-                 SnackBar(
-                   content: const Text('Searching for user...'),
-                   duration: const Duration(seconds: 1),
-                   backgroundColor: Theme.of(context).cardColor, 
-                 ),
-              );
+            actions: [
+              TextButton(
+                onPressed: isSearching ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+              ),
+              TextButton(
+                onPressed: isSearching
+                    ? null
+                    : () async {
+                        final id = controller.text.trim();
+                        if (id.isEmpty) return;
 
-              final provider = context.read<AppProvider>();
-              final error = await provider.sendFriendRequest(id);
-              
-              if (mounted) {
-                 if (error == null) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     const SnackBar(content: Text('Friend request sent!'), backgroundColor: AppTheme.success),
-                   );
-                 } else {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     SnackBar(content: Text(error), backgroundColor: AppTheme.danger),
-                   );
-                 }
-              }
-            },
-          ),
-        ],
+                        setState(() => isSearching = true);
+
+                        final provider = context.read<SocialProvider>();
+                        final error = await provider.sendFriendRequest(id);
+
+                        if (!mounted) return;
+                        
+                        setState(() => isSearching = false);
+                        Navigator.pop(ctx);
+
+                        if (error == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Friend request sent!'),
+                              backgroundColor: AppTheme.success,
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(error),
+                              backgroundColor: AppTheme.danger,
+                            ),
+                          );
+                        }
+                      },
+                child: isSearching
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
+                        ),
+                      )
+                    : const Text(
+                        'Add Friend',
+                        style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

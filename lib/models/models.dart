@@ -178,17 +178,19 @@ this.isAI = false,
 }
 
 class FriendModel {
-  final String id;
+  final String id; // This is the custom ID (PID-XXXXXX)
+  final String? uid; // This is the Firebase Auth UID (document ID)
   final String name;
   final String avatarUrl;
-  bool isOnline;
+  final bool isOnline;
+  final bool isAI;
   final String? lastMessage;
   final DateTime? lastSeen;
-  final bool isAI;
   final bool isPending;
 
   FriendModel({
     required this.id,
+    this.uid,
     required this.name,
     required this.avatarUrl,
     this.isOnline = false,

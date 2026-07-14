@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
-import '../providers/app_provider.dart';
+import '../providers/auth_provider.dart';
 import '../theme/theme.dart';
 import '../widgets/animated_background.dart';
 
@@ -57,7 +57,7 @@ class _AuthScreenState extends State<AuthScreen>
 
     setState(() => _loading = true);
     // Remove artificial delay, use real auth delay
-    final provider = context.read<AppProvider>();
+    final provider = context.read<AuthProvider>();
     final result = await provider.login(email, password);
     
     if (!mounted) return;
@@ -127,7 +127,7 @@ class _AuthScreenState extends State<AuthScreen>
 
     setState(() => _loading = true);
     // Remove artificial delay
-    final provider = context.read<AppProvider>();
+    final provider = context.read<AuthProvider>();
     final result = await provider.signup(
       name: name,
       email: email,

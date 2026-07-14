@@ -63,6 +63,13 @@ class BackgroundGestureService : AccessibilityService() {
     }
 
     private fun triggerSOS() {
+        // 1. Broadcast to SosBroadcastReceiver for instant background service trigger
+        val broadcastIntent = Intent("com.example.protega.NATIVE_SOS_TRIGGER")
+        broadcastIntent.setPackage(packageName)
+        sendBroadcast(broadcastIntent)
+        Log.d("ProtegaGestureService", "SOS broadcast sent to SosBroadcastReceiver")
+
+        // 2. Launch Activity to wake screen and bring app to foreground
         val intent = Intent(this, MainActivity::class.java).apply {
             action = "com.example.protega.TRIGGER_SOS"
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)

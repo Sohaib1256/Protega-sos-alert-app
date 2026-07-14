@@ -112,12 +112,17 @@ void onStart(ServiceInstance service) async {
   
   bool isAlarmPlaying = false;
   bool isSoundEnabled = true;
+  bool isFallEnabled = true;
   String? localAlarmPath;
+  String? configuredDeviceId;
   
-  // Read the persistently cached asset path
+  // Read the persistently cached asset path and initial settings
   final initialPrefs = await SharedPreferences.getInstance();
   await initialPrefs.reload();
   localAlarmPath = initialPrefs.getString('cached_alarm_path');
+  isSoundEnabled = initialPrefs.getBool('is_local_alarm_enabled') ?? true;
+  isFallEnabled = initialPrefs.getBool('is_fall_detection_enabled') ?? true;
+  configuredDeviceId = initialPrefs.getString('configured_device_id');
   debugPrint('BG_SERVICE_BOOT: Retrieved cached_alarm_path from SharedPreferences -> $localAlarmPath');
   
   // Fallback: if key is missing, try to locate alarm.mp3 in documents directory
@@ -150,14 +155,7 @@ void onStart(ServiceInstance service) async {
   // ── REUSABLE TRIGGER LOGIC ──
   Future<void> executeEmergencyTrigger(String triggerSource) async {
     // ── ROBUST CONFIGURATION LOOKUP ──
-    bool soundEnabledAtTrigger = true;
-    try {
-      final triggerPrefs = await SharedPreferences.getInstance();
-      await triggerPrefs.reload();
-      soundEnabledAtTrigger = triggerPrefs.getBool('is_local_alarm_enabled') ?? true;
-    } catch (e) {
-      debugPrint('BG_SERVICE_TRIGGER: Prefs lookup failed, defaulting sound to TRUE. Error: $e');
-    }
+    bool soundEnabledAtTrigger = isSoundEnabled;
 
     // ── FIRE SOS NOTIFICATION ──
     try {
@@ -229,15 +227,42 @@ void onStart(ServiceInstance service) async {
 
     // Safety net: also write 'Normal' to RTDB in case the UI write was delayed
     try {
-      final stopPrefs = await SharedPreferences.getInstance();
-      await stopPrefs.reload();
-      final deviceId = stopPrefs.getString('configured_device_id');
-      if (deviceId != null) {
-        await FirebaseDatabase.instance.ref('devices/$deviceId/alertStatus').set('Normal');
+      if (configuredDeviceId != null) {
+        await FirebaseDatabase.instance.ref('devices/$configuredDeviceId/alertStatus').set('Normal');
       }
     } catch (e) {
       debugPrint('BG_SERVICE_IPC: RTDB safety-net write failed: $e');
     }
+  });
+
+  // ── SETTINGS UPDATE LISTENER ──
+  service.on('updateSettings').listen((event) async {
+    debugPrint('BG_SERVICE_IPC: updateSettings received: $event');
+    if (event == null) return;
+    
+    if (event.containsKey('is_local_alarm_enabled')) {
+      isSoundEnabled = event['is_local_alarm_enabled'];
+      if (!isSoundEnabled && isAlarmPlaying) {
+        await audioPlayer.stop();
+        isAlarmPlaying = false;
+      }
+    }
+    
+    if (event.containsKey('is_fall_detection_enabled')) {
+      isFallEnabled = event['is_fall_detection_enabled'];
+    }
+    
+    if (event.containsKey('configured_device_id')) {
+      configuredDeviceId = event['configured_device_id'];
+    }
+  });
+
+  // ── NATIVE SOS LISTENER: Event-driven trigger from SosBroadcastReceiver via servicePipe ──
+  service.on('nativeSosFired').listen((event) async {
+    debugPrint('BG_SERVICE_IPC: nativeSosFired received from native AccessibilityService!');
+    await executeEmergencyTrigger('Volume Key SOS');
+    // Notify the UI isolate if it's alive so it can update EmergencyProvider state
+    service.invoke('nativeSosFired');
   });
 
   String? lastAlertStatus;
@@ -246,11 +271,7 @@ void onStart(ServiceInstance service) async {
   Timer.periodic(const Duration(seconds: 5), (timer) async {
     if (service is AndroidServiceInstance) {
       if (await service.isForegroundService()) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.reload(); // Force sync with main isolate
-        final deviceId = prefs.getString('configured_device_id');
-        
-        isSoundEnabled = prefs.getBool('is_local_alarm_enabled') ?? true;
+        final deviceId = configuredDeviceId;
         
         // If alarm is playing but user disabled it in settings, stop it
         if (!isSoundEnabled && isAlarmPlaying) {
@@ -274,9 +295,6 @@ void onStart(ServiceInstance service) async {
                   
                   if (status == 'SOS Pressed' || status == 'Fall Detected') {
                     if (status == 'Fall Detected') {
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.reload();
-                      final isFallEnabled = prefs.getBool('is_fall_detection_enabled') ?? true;
                       if (!isFallEnabled) {
                         await FirebaseDatabase.instance.ref('devices/$deviceId/alertStatus').set('Normal');
                         return;

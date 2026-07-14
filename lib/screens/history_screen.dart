@@ -4,7 +4,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:provider/provider.dart';
 
-import '../providers/app_provider.dart';
+import '../providers/emergency_provider.dart';
+import '../providers/social_provider.dart';
 
 import '../theme/theme.dart';
 
@@ -23,7 +24,7 @@ class HistoryScreen extends StatelessWidget {
 
   Widget build(BuildContext context) {
 
-    return Consumer<AppProvider>(
+    return Consumer<EmergencyProvider>(
 
       builder: (context, provider, _) {
 
@@ -439,7 +440,7 @@ class FamilyScreen extends StatelessWidget {
 
   Widget build(BuildContext context) {
 
-    return Consumer<AppProvider>(
+    return Consumer<SocialProvider>(
 
       builder: (context, provider, _) {
 
@@ -702,70 +703,6 @@ class FamilyScreen extends StatelessWidget {
                                 ],
 
                               ),
-
-                            ),
-
-                            Column(
-
-                              crossAxisAlignment:
-
-                              CrossAxisAlignment.end,
-
-                              children: [
-
-
-
-                                Row(
-
-                                  mainAxisSize: MainAxisSize.min,
-
-                                  children: [
-
-                                    Icon(
-
-                                      Icons.battery_std_rounded,
-
-                                      size: 12,
-
-                                      color:
-
-                                      patient.batteryLevel >
-
-                                          50
-
-                                          ? AppTheme.success
-
-                                          : AppTheme.warning,
-
-                                    ),
-
-                                    const SizedBox(width: 3),
-
-                                    Text(
-
-                                      '${patient.batteryLevel}%',
-
-                                      style: const TextStyle(
-
-                                        fontSize: 11,
-
-                                        fontWeight:
-
-                                        FontWeight.w600,
-
-                                        color: AppTheme
-
-                                            .textSecondary,
-
-                                      ),
-
-                                    ),
-
-                                  ],
-
-                                ),
-
-                              ],
 
                             ),
 
