@@ -1,98 +1,190 @@
-# Protega - Health Monitoring & Emergency Response App
+<p align="center">
+  <img src="assets/app_icon_transparent.png" alt="Protega Logo" width="120"/>
+</p>
 
-A comprehensive Flutter application for health monitoring and emergency response with real-time vitals tracking, SOS functionality, and AI-powered safety assistance.
+<h1 align="center">Protega — SOS Alert & Health Monitoring App</h1>
+
+<p align="center">
+  A real-time emergency response and health monitoring system built with Flutter, Firebase, and ESP32 IoT hardware.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Flutter-3.0+-02569B?logo=flutter" alt="Flutter"/>
+  <img src="https://img.shields.io/badge/Firebase-Backend-FFCA28?logo=firebase" alt="Firebase"/>
+  <img src="https://img.shields.io/badge/ESP32-IoT%20Hardware-E7352C?logo=espressif" alt="ESP32"/>
+  <img src="https://img.shields.io/badge/Gemini%20AI-Powered-4285F4?logo=google" alt="Gemini AI"/>
+  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android" alt="Android"/>
+</p>
+
+---
+
+## 🔭 Overview
+
+**Protega** is a comprehensive safety application that combines a Flutter mobile app with ESP32 wearable hardware to deliver:
+
+- **SOS Emergency Alerts** — triggered via the app (hold-to-activate) or physical hardware button
+- **Real-time Vitals Monitoring** — heart rate, fall detection, GPS location, and battery level streamed from ESP32
+- **Guardian Network** — friends and family receive live alerts and can track the user in real time
+- **AI Safety Assistant** — powered by Google Gemini for intelligent safety guidance
+- **Background Protection** — foreground service with alarm audio, even when the app is minimized
+
+---
 
 ## 📁 Project Structure
 
 ```
-lib/
-├── main.dart                       # App entry point
-├── models/
-│   └── models.dart                 # Data models (User, Alert, Chat, etc.)
-├── providers/
-│   └── app_provider.dart           # State management with Provider
-├── screens/
-│   ├── auth_screen.dart            # Login & signup with wizard
-│   ├── chat_screen.dart            # Real-time chat interface
-│   ├── guardian_dashboard.dart     # Guardian view to monitor patients
-│   ├── history_screen.dart         # Activity and alert history
-│   ├── home_shell.dart             # Main app shell with navigation
-│   ├── patient_dashboard.dart      # Patient vitals & SOS button
-│   ├── settings_screen.dart        # User settings & preferences
-│   └── social_screen.dart          # Friends list & social features
-├── theme/
-│   └── theme.dart                  # App theme & color constants
-└── widgets/
-    ├── animated_background.dart    # Animated gradient background
-    ├── bottom_nav.dart             # Bottom navigation bar
-    ├── glass_card.dart             # Glassmorphism UI component
-    └── sos_button.dart             # Emergency SOS button widget
+protega/
+├── lib/
+│   ├── main.dart                          # App entry, Firebase init, provider setup
+│   ├── firebase_options.dart              # Firebase config (git-ignored)
+│   ├── models/
+│   │   └── models.dart                    # Data models (User, Alert, Chat, Message)
+│   ├── providers/
+│   │   ├── auth_provider.dart             # Authentication & user session
+│   │   ├── emergency_provider.dart        # SOS alerts, alarm audio, alert lifecycle
+│   │   ├── hardware_provider.dart         # ESP32 connection, vitals, fall detection
+│   │   └── social_provider.dart           # Friends, chat, AI assistant, requests
+│   ├── screens/
+│   │   ├── auth_screen.dart               # Login & multi-step signup wizard
+│   │   ├── chat_screen.dart               # Real-time messaging interface
+│   │   ├── guardian_dashboard.dart         # Monitor connected patients
+│   │   ├── history_screen.dart            # Alert & event timeline
+│   │   ├── home_shell.dart                # Main app shell with bottom navigation
+│   │   ├── patient_dashboard.dart         # Vitals display & SOS trigger
+│   │   ├── permissions_setup_screen.dart  # Runtime permission onboarding
+│   │   ├── settings_screen.dart           # Profile, contacts, fall config, privacy
+│   │   └── social_screen.dart             # Friend list & friend requests
+│   ├── services/
+│   │   └── background_service.dart        # Foreground service for SOS & monitoring
+│   ├── theme/
+│   │   └── theme.dart                     # Colors, gradients, text styles
+│   └── widgets/
+│       ├── animated_background.dart       # Animated gradient blob background
+│       ├── bottom_nav.dart                # Glassmorphism bottom navigation bar
+│       ├── glass_card.dart                # Frosted glass card component
+│       ├── glass_chip.dart                # Frosted glass chip/tag component
+│       └── sos_button.dart                # Hold-to-activate SOS button
+│
+├── android/
+│   └── app/src/main/kotlin/com/example/protega/
+│       ├── MainActivity.kt                # Flutter activity with method channels
+│       ├── BackgroundGestureService.kt    # Accessibility service for hardware SOS
+│       └── SosBroadcastReceiver.kt        # Broadcast receiver for native SOS triggers
+│
+├── esp32_firmware/
+│   └── esp32_firmware.ino                 # Arduino firmware for ESP32 wearable
+│
+├── assets/
+│   ├── app_icon_transparent.png           # App launcher icon
+│   ├── fonts/                             # Inter & Outfit font families
+│   └── sounds/                            # SOS alarm audio
+│
+├── firestore.rules                        # Cloud Firestore security rules
+├── firebase.json                          # Firebase project config
+├── pubspec.yaml                           # Flutter dependencies
+├── .env                                   # API keys (git-ignored)
+└── .gitignore
 ```
+
+---
 
 ## ✨ Features
 
-### 🔐 Authentication
-- Multi-step signup wizard
-- Role-based access (Patient, Guardian, Caretaker, Safety Officer)
-- Purpose selection (Medical, Personal)
-- Form validation with user-friendly error messages
+### 🚨 SOS Emergency System
+- **Hold-to-activate** SOS button with 3-second progress ring and haptic feedback
+- **Loud alarm audio** plays on the device during an active alert
+- **Real-time alert broadcasting** to all connected guardians/friends via Firestore
+- **Background foreground service** keeps SOS active even when the app is minimized
+- **Native SOS trigger** via Android accessibility service and broadcast receiver
+- **Hardware SOS button** on ESP32 wearable for physical panic trigger
 
-### 🚨 Patient Dashboard
-- **SOS Emergency Button**: Hold-to-activate emergency alert
-- **Real-time Vitals**: Heart rate, battery level tracking
-- **Fall Detection**: Configurable sensitivity settings
-- **Location Sharing**: GPS tracking for safety
-- **Quick Actions**: Direct access to emergency contacts
+### 📡 ESP32 Hardware Integration
+- **ADXL345 accelerometer** for fall detection with configurable sensitivity
+- **NEO-6M GPS module** for real-time location tracking
+- **Battery level monitoring** via analog pin
+- **Firebase Realtime Database** streaming for low-latency vitals updates
+- **WiFiManager** for easy WiFi provisioning on the device
+- **Physical SOS button** on GPIO pin 4
+
+### 🔐 Authentication & Roles
+- Firebase Authentication (email/password)
+- Multi-step signup wizard with role selection
+- **Medical use** roles: Patient, Guardian, Caretaker, Safety Officer
+- **Personal use** roles: Self (User), Guardian
+- Persistent session with auto-login
 
 ### 👥 Guardian Dashboard
 - Monitor multiple patients simultaneously
-- Real-time health status updates
-- Location tracking on maps
-- Direct communication (call/message)
-- Alert notifications
+- Real-time health status cards with vitals
+- Live location tracking
+- Direct call and message actions
+- Active alert notifications
 
 ### 💬 Social & Chat
-- Friend search by User ID
-- Real-time messaging
-- AI Safety Assistant with intelligent responses
+- Friend search by unique User ID
+- Friend request system (send, accept, decline)
+- Real-time messaging via Firestore
+- **AI Safety Assistant** powered by Google Gemini
 - Online/offline status indicators
-- Friend request system
 
 ### 📊 History & Analytics
-- Alert history timeline
+- Alert history timeline with severity indicators
 - System event logging
+- Filterable event categories
 - Timestamp tracking
-- Event categorization
 
 ### ⚙️ Settings
-- Profile management
-- Fall detection configuration
+- Profile management (name, photo, medical info)
 - Emergency contacts management
-- Privacy settings
+- Fall detection sensitivity (Low / Medium / High)
 - Notification preferences
+- Privacy settings
+- Hardware connection management
 
-## 🎨 UI/UX Features
+### 🎨 UI/UX
+- **Glassmorphism** design language throughout
+- **Animated gradient backgrounds** with ambient blobs
+- **Dark theme** with curated color palette
+- Smooth animations via `flutter_animate`
+- Health data charts via `fl_chart`
+- Custom fonts (Inter, Outfit)
+- Haptic feedback on key interactions
 
-- **Glassmorphism Design**: Frosted glass effects throughout
-- **Smooth Animations**: Flutter Animate for fluid transitions
-- **Dark Theme**: Eye-friendly color scheme
-- **Gradient Backgrounds**: Animated ambient blobs
-- **Haptic Feedback**: Tactile responses for actions
-- **Charts**: Health data visualization with FL Chart
+---
+
+## 🔧 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | Flutter (Dart) |
+| **State Management** | Provider (multi-provider architecture) |
+| **Auth** | Firebase Authentication |
+| **Database** | Cloud Firestore (chat, users, alerts) |
+| **Realtime Data** | Firebase Realtime Database (ESP32 vitals) |
+| **AI** | Google Gemini API |
+| **Background Service** | `flutter_background_service` + Android foreground service |
+| **Native Android** | Kotlin (accessibility service, broadcast receiver, method channels) |
+| **IoT Hardware** | ESP32 + ADXL345 + NEO-6M GPS |
+| **Fonts** | Google Fonts (Inter, Outfit) |
+
+---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Flutter SDK (3.0.0 or higher)
-- Dart SDK (3.0.0 or higher)
-- Android Studio / VS Code with Flutter extensions
+- Flutter SDK ≥ 3.0.0
+- Dart SDK ≥ 3.0.0
+- Android Studio or VS Code with Flutter extensions
+- A Firebase project (see [Firebase Setup](#firebase-setup))
+- *(Optional)* ESP32 board with ADXL345 and NEO-6M GPS
 
 ### Installation
 
-1. **Clone or download the project**
+1. **Clone the repository**
    ```bash
-   cd protega
+   git clone https://github.com/Sohaib1256/Protega-sos-alert-app.git
+   cd Protega-sos-alert-app
    ```
 
 2. **Install dependencies**
@@ -100,123 +192,143 @@ lib/
    flutter pub get
    ```
 
-3. **Run the app**
+3. **Set up environment variables**
+
+   Create a `.env` file in the project root:
+   ```
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+
+4. **Run the app**
    ```bash
    flutter run
    ```
 
-### Platform-Specific Setup
+### Firebase Setup
 
-#### Android
-```bash
-flutter run -d android
-```
+1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+2. Enable **Authentication** (Email/Password)
+3. Enable **Cloud Firestore** and deploy the security rules from `firestore.rules`
+4. Enable **Realtime Database** (for ESP32 vitals streaming)
+5. Add your Android app and download `google-services.json` to `android/app/`
+6. Generate `firebase_options.dart` using FlutterFire CLI:
+   ```bash
+   dart pub global activate flutterfire_cli
+   flutterfire configure
+   ```
 
-#### iOS
-```bash
-flutter run -d ios
-```
+### ESP32 Hardware Setup (Optional)
 
-#### Web
-```bash
-flutter run -d chrome
-```
+1. Open `esp32_firmware/esp32_firmware.ino` in Arduino IDE
+2. Install required libraries:
+   - `WiFiManager`
+   - `Firebase ESP Client`
+   - `Adafruit ADXL345`
+   - `TinyGPSPlus`
+3. Update the Firebase API key and database URL in the firmware
+4. Wire the hardware:
+   - **SOS Button** → GPIO 4
+   - **GPS (NEO-6M)** → TX=GPIO 16, RX=GPIO 17
+   - **ADXL345** → SDA=GPIO 21, SCL=GPIO 22
+   - **Battery** → GPIO 34 (analog)
+5. Flash the firmware to your ESP32
 
-## 📱 Demo Credentials
-
-The app includes demo authentication:
-
-**Patient Account:**
-- Email: `john@example.com`
-- Password: `password`
-
-**Guardian Account:**
-- Email: `jane@example.com`
-- Password: `password`
-
-Or create a new account via signup!
-
-## 🔧 Configuration
-
-### Fall Detection
-Adjust sensitivity in Settings:
-- Low: Less sensitive, fewer false alarms
-- Medium: Balanced detection
-- High: Most sensitive, maximum protection
-
-### Emergency Contacts
-Add emergency contacts in Settings for quick access during alerts.
-
-## 📦 Dependencies
-
-- **provider**: State management
-- **flutter_animate**: Smooth animations
-- **fl_chart**: Data visualization
-- **uuid**: Unique ID generation
-- **url_launcher**: Phone calls & links
+---
 
 ## 🏗️ Architecture
 
-### State Management
-- Provider pattern for reactive state management
-- Centralized `AppProvider` for global app state
-- ChangeNotifier for UI updates
+### Multi-Provider State Management
 
-### Code Organization
-- **Models**: Data structures and business logic
-- **Providers**: State management layer
-- **Screens**: Full-page views
-- **Widgets**: Reusable UI components
-- **Theme**: Centralized styling
+The app uses a **domain-separated provider architecture** instead of a single monolithic provider:
 
-## 🎯 Key Components
-
-### SOS Button
-Hold-to-activate emergency button with:
-- 3-second hold timer
-- Progress ring indicator
-- Ripple animation effect
-- Haptic feedback
-
-### Glass Card
-Reusable glassmorphism component:
-```dart
-GlassCard(
-  child: YourWidget(),
-  padding: EdgeInsets.all(16),
-  onTap: () {},
-)
+```
+┌─────────────────────────────────────────────────┐
+│                    main.dart                      │
+│            MultiProvider (4 providers)            │
+├──────────┬──────────┬───────────┬────────────────┤
+│  Auth    │ Emergency│ Hardware  │    Social       │
+│ Provider │ Provider │ Provider  │   Provider      │
+├──────────┼──────────┼───────────┼────────────────┤
+│ Firebase │ Firestore│ Realtime  │  Firestore      │
+│   Auth   │ + Audio  │    DB     │  + Gemini AI    │
+└──────────┴──────────┴───────────┴────────────────┘
 ```
 
-### Animated Background
-Dynamic gradient background with moving blobs:
-```dart
-AnimatedBackground(
-  child: YourContent(),
-  isAlert: false,
-)
+- **AuthProvider** — Sign in, sign up, session persistence, user profile
+- **EmergencyProvider** — SOS trigger, alarm playback, alert CRUD, alert listeners
+- **HardwareProvider** — ESP32 connection, vitals streaming, fall detection config
+- **SocialProvider** — Friends, requests, chat messages, AI assistant
+
+### Background Services
+
+- **`BackgroundService`** — Dart isolate-based foreground service for continuous monitoring
+- **`BackgroundGestureService.kt`** — Android accessibility service for detecting hardware SOS gestures
+- **`SosBroadcastReceiver.kt`** — Android broadcast receiver that bridges native SOS triggers to Flutter
+
+### Firestore Data Model
+
+```
+users/{userId}         → profile, role, vitals, emergency contacts, friends[]
+alerts/{alertId}       → SOS alerts with sender, location, severity, timestamps
+chats/{chatId}         → participant list, last message
+  └── messages/{msgId} → individual chat messages
 ```
 
-## 🔐 Security Note
+---
 
-This is a demo application. For production use:
-- Implement proper authentication with JWT/OAuth
-- Add backend API integration
-- Enable HTTPS for all communications
-- Encrypt sensitive data
-- Add biometric authentication
-- Implement proper session management
+## 📦 Dependencies
+
+| Package | Purpose |
+|---|---|
+| `provider` | State management |
+| `firebase_core` | Firebase initialization |
+| `firebase_auth` | Email/password authentication |
+| `cloud_firestore` | Users, alerts, chats database |
+| `firebase_database` | Real-time ESP32 vitals streaming |
+| `flutter_animate` | Smooth UI animations |
+| `fl_chart` | Health data visualization |
+| `google_generative_ai` | Gemini AI safety assistant |
+| `geolocator` | GPS location services |
+| `flutter_background_service` | Foreground service for SOS |
+| `flutter_local_notifications` | Alert notifications |
+| `audioplayers` | SOS alarm audio playback |
+| `permission_handler` | Runtime permission management |
+| `shared_preferences` | Local key-value storage |
+| `flutter_dotenv` | Environment variable loading |
+| `flutter_phone_direct_caller` | Direct phone call actions |
+| `image_picker` | Profile photo selection |
+| `google_fonts` | Inter & Outfit font families |
+| `uuid` | Unique ID generation |
+| `url_launcher` | Open URLs, phone calls, SMS |
+| `path_provider` | File system paths |
+| `http` | HTTP networking |
+
+---
+
+## 🔐 Security Notes
+
+- Firebase security rules enforce user-scoped read/write access
+- Friends can only add/remove their own UID from other users' arrays
+- Alerts are readable only by the sender and their friends
+- Chat access is restricted to participants
+- API keys are stored in `.env` (git-ignored)
+- `firebase_options.dart` and `google-services.json` are git-ignored
+
+---
 
 ## 🐛 Troubleshooting
 
-### Issue: Dependencies not installing
-**Solution**: Run `flutter clean` then `flutter pub get`
+| Issue | Solution |
+|---|---|
+| Dependencies not installing | Run `flutter clean` then `flutter pub get` |
+| Build fails | Check `flutter doctor` for missing SDKs |
+| Firebase errors | Verify `google-services.json` is in `android/app/` |
+| Background service not starting | Grant battery optimization exemption in device settings |
+| Location not updating | Ensure location permissions are granted (including background) |
+| ESP32 not connecting | Check WiFi credentials and Firebase database URL in firmware |
+| Alarm not playing | Ensure `assets/sounds/alarm.mp3` exists and is listed in `pubspec.yaml` |
 
-### Issue: Build fails
-**Solution**: Check Flutter version with `flutter doctor`
-
-### Issue: Hot reload not working
-**Solution**: Stop and restart the app
+---
 
 ## 🚀 Building for Production
 
@@ -224,44 +336,39 @@ This is a demo application. For production use:
 ```bash
 flutter build apk --release
 ```
+Output: `build/app/outputs/flutter-apk/app-release.apk`
 
-### iOS App
+### Android App Bundle (Play Store)
+```bash
+flutter build appbundle --release
+```
+
+### iOS (requires macOS + Xcode)
 ```bash
 flutter build ios --release
 ```
 
-### Web
-```bash
-flutter build web --release
-```
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -m 'Add your feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Open a Pull Request
+
+---
 
 ## 📄 License
 
 This project is provided as-is for educational and demonstration purposes.
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+---
 
 ## 📞 Support
 
 For issues or questions:
-1. Check the documentation above
-2. Review Flutter documentation: https://docs.flutter.dev/
-3. Open an issue in the repository
-
-## 🎉 Enjoy!
-
-Start the app and explore all the features. Perfect for:
-- Health monitoring applications
-- Emergency response systems
-- Patient care management
-- Family safety tracking
-
----
-
-**Note**: This app uses demo data and simulated responses. For production use, integrate with real backend services and sensor data.
+1. Open an issue in the [GitHub repository](https://github.com/Sohaib1256/Protega-sos-alert-app/issues)
+2. Review Flutter documentation: [docs.flutter.dev](https://docs.flutter.dev/)
+3. Review Firebase documentation: [firebase.google.com/docs](https://firebase.google.com/docs)
