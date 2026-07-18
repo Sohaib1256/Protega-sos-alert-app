@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
@@ -15,6 +16,10 @@ class SocialProvider with ChangeNotifier {
   final List<FriendModel> _friendRequests = [];
   final List<UserModel> _users = []; 
   final Map<String, List<ChatMessage>> _chatMessages = {};
+
+  // Reactive listener for incoming friend requests
+  StreamSubscription<DocumentSnapshot>? _userDocSubscription;
+  List<String> _lastReceivedRequestIds = [];
   
   String get _apiKey {
     try {
@@ -69,7 +74,9 @@ When a user asks for nearby hospitals, clinics, or medical facilities, ALWAYS us
     if (uidChanged) {
       if (authProvider.uid != null) {
         fetchFriends();
+        _startUserDocListener();
       } else {
+        _stopUserDocListener();
         _friends.clear();
         _friendRequests.clear();
         _users.clear();
@@ -169,6 +176,84 @@ When a user asks for nearby hospitals, clinics, or medical facilities, ALWAYS us
     } catch (e) {
       debugPrint('Error fetching friends: $e');
     }
+  }
+
+  /// Starts a real-time listener on the current user's Firestore document.
+  /// When receivedRequests changes (e.g. someone sends a friend request),
+  /// this automatically refreshes the _friendRequests list and triggers a UI rebuild.
+  void _startUserDocListener() {
+    _stopUserDocListener();
+    final uid = _authProvider?.uid;
+    if (uid == null) return;
+
+    _userDocSubscription = _firestore
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen((snapshot) async {
+      if (!snapshot.exists) return;
+      final data = snapshot.data()!;
+
+      final incomingReceivedIds = List<String>.from(data['receivedRequests'] ?? []);
+      final incomingSentIds = List<String>.from(data['sentRequests'] ?? []);
+
+      // Keep _currentUser's arrays in sync so guard checks stay accurate
+      if (_currentUser != null) {
+        _currentUser!.receivedRequests
+          ..clear()
+          ..addAll(incomingReceivedIds);
+        _currentUser!.sentRequests
+          ..clear()
+          ..addAll(incomingSentIds);
+      }
+
+      // Only re-fetch profiles if receivedRequests actually changed
+      final incomingSet = incomingReceivedIds.toSet();
+      final lastSet = _lastReceivedRequestIds.toSet();
+      if (!setEquals(incomingSet, lastSet)) {
+        _lastReceivedRequestIds = List.from(incomingReceivedIds);
+        await _refreshFriendRequests(incomingReceivedIds);
+      }
+    }, onError: (e) {
+      debugPrint('User doc listener error: $e');
+    });
+  }
+
+  /// Cancels the real-time user document listener.
+  void _stopUserDocListener() {
+    _userDocSubscription?.cancel();
+    _userDocSubscription = null;
+    _lastReceivedRequestIds = [];
+  }
+
+  /// Resolves a list of custom IDs (PID-xxx) into FriendModel profiles
+  /// and updates the _friendRequests list.
+  Future<void> _refreshFriendRequests(List<String> receivedRequestIds) async {
+    _friendRequests.clear();
+
+    for (var reqId in receivedRequestIds) {
+      try {
+        final docSnap = await _firestore
+            .collection('users')
+            .where('id', isEqualTo: reqId)
+            .limit(1)
+            .get();
+        if (docSnap.docs.isNotEmpty) {
+          final data = docSnap.docs.first.data();
+          _friendRequests.add(FriendModel(
+            id: data['id'],
+            name: data['name'],
+            avatarUrl: data['avatarUrl'] ??
+                'https://ui-avatars.com/api/?name=${Uri.encodeComponent(data['name'] ?? 'U')}&background=random',
+            isOnline: data['isOnline'] ?? false,
+            isAI: false,
+          ));
+        }
+      } catch (e) {
+        debugPrint('Error fetching friend request profile for $reqId: $e');
+      }
+    }
+    notifyListeners();
   }
 
   Future<UserModel?> searchUserById(String id) async {

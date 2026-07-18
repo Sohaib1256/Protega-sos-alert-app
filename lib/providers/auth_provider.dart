@@ -101,6 +101,17 @@ class AuthProvider with ChangeNotifier {
     _currentUser = null;
     await _auth.signOut();
     notifyListeners();
+
+    // Wipe Firestore local cache to prevent data leaking between accounts.
+    // terminate() closes all active listeners and connections.
+    // clearPersistence() deletes the local SQLite cache.
+    // Firestore auto-reinitializes on next use by the new session.
+    try {
+      await _firestore.terminate();
+      await _firestore.clearPersistence();
+    } catch (e) {
+      debugPrint('Firestore cache cleanup error: $e');
+    }
   }
 
   Future<String?> signup({

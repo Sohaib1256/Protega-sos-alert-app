@@ -401,20 +401,37 @@ class EmergencyProvider with ChangeNotifier {
     });
   }
 
-  void _listenToFriendAlerts() {
+  Future<void> _listenToFriendAlerts() async {
     _friendAlertsSubscription?.cancel();
-    if (_currentUser == null || _currentUser!.friends.isEmpty) return;
+    _friendAlertsSubscription = null;
+    if (_currentUser == null || uid == null) return;
 
-    _friendAlertsSubscription = _firestore
-        .collection('alerts')
-        .where('isActive', isEqualTo: true)
-        .snapshots()
-        .listen((snapshot) {
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final alertUserId = data['userId'] as String?;
-        if (alertUserId != null && _currentUser!.friends.contains(alertUserId)) {
+    try {
+      // Fetch friend Firebase Auth UIDs from the friends subcollection
+      final friendsSnap = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('friends')
+          .get();
+
+      if (friendsSnap.docs.isEmpty) return;
+
+      // Firestore whereIn supports max 30 elements
+      final friendUids = friendsSnap.docs.map((doc) => doc.id).take(30).toList();
+
+      _friendAlertsSubscription = _firestore
+          .collection('alerts')
+          .where('senderId', whereIn: friendUids)
+          .snapshots()
+          .listen((snapshot) {
+        // Filter active alerts client-side to avoid composite index requirement
+        final activeAlerts = snapshot.docs
+            .where((doc) => doc.data()['isActive'] == true)
+            .toList();
+
+        if (activeAlerts.isNotEmpty) {
           if (!_isSOSActive) {
+            final data = activeAlerts.first.data();
             _isSOSActive = true;
             FlutterBackgroundService().invoke("triggerAlarm");
             _notifications.insert(
@@ -427,15 +444,17 @@ class EmergencyProvider with ChangeNotifier {
             );
             notifyListeners();
           }
-          return;
+        } else {
+          if (_isSOSActive && _currentUser?.role == UserRole.guardian) {
+            _isSOSActive = false;
+            FlutterBackgroundService().invoke("stopAlarm");
+            notifyListeners();
+          }
         }
-      }
-      if (_isSOSActive && _currentUser!.role == UserRole.guardian) {
-        _isSOSActive = false;
-        FlutterBackgroundService().invoke("stopAlarm");
-        notifyListeners();
-      }
-    });
+      });
+    } catch (e) {
+      debugPrint('Error setting up friend alerts listener: $e');
+    }
   }
 
   void addNotification(NotificationItem notification) {
