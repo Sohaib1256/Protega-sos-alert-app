@@ -372,3 +372,8 @@ For issues or questions:
 1. Open an issue in the [GitHub repository](https://github.com/Sohaib1256/Protega-sos-alert-app/issues)
 2. Review Flutter documentation: [docs.flutter.dev](https://docs.flutter.dev/)
 3. Review Firebase documentation: [firebase.google.com/docs](https://firebase.google.com/docs)
+
+---
+
+## 🔗 Let's Connect
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-%230077B5.svg?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/sohaib-sheikh-388a9036a/)
